@@ -72,10 +72,6 @@
   .subtitle{font-family:JetBrains Mono,ui-monospace,monospace; font-size:12.5px;
     color:var(--ink-faint); margin-top:5px}
   .controls{display:flex; gap:8px; flex-wrap:wrap}
-  .seg{display:inline-flex; border:1px solid var(--edge); border-radius:999px; background:var(--paper-2); padding:3px}
-  .seg button{border:0; background:transparent; color:var(--ink-soft); font:inherit; font-size:13px;
-    padding:6px 13px; border-radius:999px; cursor:pointer}
-  .seg button[aria-pressed="true"]{background:var(--field); color:var(--ink); box-shadow:var(--shadow)}
   .iconbtn{border:1px solid var(--edge); background:var(--paper-2); color:var(--ink-soft);
     border-radius:999px; width:38px; height:38px; cursor:pointer; font-size:15px}
 
@@ -100,7 +96,7 @@
     padding:11px 18px; cursor:pointer; font-size:14.5px}
   button.act.ghost{background:transparent; color:var(--uv); border:1px solid var(--uv-line)}
   button.act.mini{padding:8px 13px; font-size:13px; font-weight:500}
-  button.act:focus-visible, .seg button:focus-visible, .iconbtn:focus-visible, input:focus-visible, textarea:focus-visible{
+  button.act:focus-visible, .iconbtn:focus-visible, input:focus-visible, textarea:focus-visible{
     outline:2px solid var(--uv); outline-offset:2px}
   button:disabled{opacity:.45; cursor:not-allowed}
 
@@ -137,7 +133,6 @@
 
   /* teach sections */
   .teach{margin-top:12px}
-  body:not(.full) .lab-only{display:none}
   .section{border-top:1px solid var(--edge); padding-top:26px; margin-top:34px}
   .section h2{font-size:23px; margin-bottom:12px}
   .section p, .section li{color:var(--ink-soft); max-width:70ch}
@@ -207,10 +202,7 @@
       </div>
     </div>
     <div class="controls">
-      <div class="seg" role="group" aria-label="Detail level">
-        <button id="depthDemo" aria-pressed="true">Demo</button>
-        <button id="depthFull" aria-pressed="false">Full lab</button>
-      </div>
+      <button class="iconbtn" id="reset" title="Reset the lab to its starting state" aria-label="Reset all fields to defaults">↺</button>
       <button class="iconbtn" id="theme" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
     </div>
   </div>
@@ -307,7 +299,7 @@
       <li>Each of those characters is shifted up by <span class="mono k">0xE0000</span> into the Tags block — same letter, now invisible.</li>
       <li>The invisible run is appended to (or scattered through) the cover text. Position doesn’t matter: a reader collects the tag characters in order and shifts them back down.</li>
     </ol>
-    <div class="callout lab-only"><b>Container format.</b> Before Base64, the payload is one version byte, one flags byte (plaintext or AES-GCM), then either the UTF-8 message or <span class="mono">salt(16) · iv(12) · ciphertext</span>. With encryption on, the key comes from your passphrase via PBKDF2-SHA256 (210,000 iterations) and the message is sealed with AES-256-GCM in your browser — no bytes leave the page.</div>
+    <div class="callout"><b>Container format.</b> Before Base64, the payload is one version byte, one flags byte (plaintext or AES-GCM), then either the UTF-8 message or <span class="mono">salt(16) · iv(12) · ciphertext</span>. With encryption on, the key comes from your passphrase via PBKDF2-SHA256 (210,000 iterations) and the message is sealed with AES-256-GCM in your browser — no bytes leave the page.</div>
   </section>
 
   <!-- TEACHING: in the wild -->
@@ -688,15 +680,43 @@
   });
 
   /* =========================================================
-     chrome: depth + theme
+     chrome: reset + theme
   ========================================================= */
-  function setDepth(full){
-    document.body.classList.toggle("full", full);
-    $("depthFull").setAttribute("aria-pressed", String(full));
-    $("depthDemo").setAttribute("aria-pressed", String(!full));
-  }
-  $("depthDemo").addEventListener("click", ()=>setDepth(false));
-  $("depthFull").addEventListener("click", ()=>setDepth(true));
+  // Snapshot the authored starting state (captured before any interaction)
+  const DEF = {
+    cover: $("cover").value,
+    secret: $("secret").value,
+    inspectIn: $("inspectIn").value,
+    hideOut: {cls: $("hideOut").className, html: $("hideOut").innerHTML},
+    findOut: {cls: $("findOut").className, html: $("findOut").innerHTML},
+    inspectRender: $("inspectRender").innerHTML,
+  };
+  $("reset").addEventListener("click", () => {
+    // hide panel
+    $("cover").value = DEF.cover;
+    $("secret").value = DEF.secret;
+    $("encChk").checked = false;
+    $("encPassWrap").style.display = "none";
+    $("encPass").value = "";
+    document.querySelector('input[name=place][value="append"]').checked = true;
+    $("hideOut").className = DEF.hideOut.cls; $("hideOut").innerHTML = DEF.hideOut.html;
+    // find panel
+    $("carrier").value = "";
+    $("decPassWrap").style.display = "none";
+    $("decPass").value = "";
+    $("findOut").className = DEF.findOut.cls; $("findOut").innerHTML = DEF.findOut.html;
+    // inspect panel
+    $("inspectIn").value = DEF.inspectIn;
+    $("inspectRender").innerHTML = DEF.inspectRender;
+    $("inspectStat").textContent = "";
+    // hero
+    heroLit = false;
+    paintStage(false);
+    $("revealBtn").textContent = "Reveal hidden characters";
+    $("heroDecoded").textContent = "";
+    refreshDecState();
+    window.scrollTo({top:0, behavior:"smooth"});
+  });
 
   $("theme").addEventListener("click", () => {
     const cur = document.documentElement.getAttribute("data-theme");
