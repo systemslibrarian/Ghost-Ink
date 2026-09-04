@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghost Ink — invisible Unicode-tag messages</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* light: ink on warm paper, secret ink revealed in violet */
+    --paper:#f7f4ee;
+    --paper-2:#efe9df;
+    --edge:#ddd4c4;
+    --ink:#20242c;
+    --ink-soft:#5b5f68;
+    --ink-faint:#8a8d94;
+    --uv:#7b2ff7;
+    --uv-soft:#efe4ff;
+    --uv-line:#c9a9ff;
+    --ok:#1f7a4d;
+    --bad:#b23b3b;
+    --field:#ffffff;
+    --shadow:0 1px 0 rgba(0,0,0,.04), 0 10px 30px -18px rgba(20,24,32,.35);
+    --glow:none;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0c1018;
+      --paper-2:#121826;
+      --edge:#22293a;
+      --ink:#e8ecf5;
+      --ink-soft:#a7afc2;
+      --ink-faint:#6c7488;
+      --uv:#b98bff;
+      --uv-soft:#241638;
+      --uv-line:#5a3ba0;
+      --ok:#57d998;
+      --bad:#ff8a8a;
+      --field:#0f1524;
+      --shadow:0 1px 0 rgba(255,255,255,.02), 0 18px 40px -22px rgba(0,0,0,.8);
+      --glow:0 0 22px -2px rgba(185,139,255,.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0c1018; --paper-2:#121826; --edge:#22293a;
+    --ink:#e8ecf5; --ink-soft:#a7afc2; --ink-faint:#6c7488;
+    --uv:#b98bff; --uv-soft:#241638; --uv-line:#5a3ba0;
+    --ok:#57d998; --bad:#ff8a8a; --field:#0f1524;
+    --shadow:0 1px 0 rgba(255,255,255,.02), 0 18px 40px -22px rgba(0,0,0,.8);
+    --glow:0 0 22px -2px rgba(185,139,255,.55);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:940px; margin:0 auto; padding:clamp(20px,4vw,44px) clamp(16px,4vw,28px) 80px}
+  a{color:var(--uv)}
+  h1,h2,h3{font-family:Spectral,Georgia,serif; font-weight:600; line-height:1.15; margin:0}
+  p{margin:0 0 1em}
+
+  /* ---- top bar ---- */
+  .top{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:30px}
+  .brand{display:flex; align-items:baseline; gap:12px; flex:1 1 auto; min-width:220px}
+  .brand .mark{font-size:26px; line-height:1; transform:translateY(2px)}
+  .brand h1{font-size:clamp(26px,4.4vw,38px); letter-spacing:.2px}
+  .subtitle{font-family:JetBrains Mono,ui-monospace,monospace; font-size:12.5px;
+    color:var(--ink-faint); margin-top:5px}
+  .controls{display:flex; gap:8px; flex-wrap:wrap}
+  .seg{display:inline-flex; border:1px solid var(--edge); border-radius:999px; background:var(--paper-2); padding:3px}
+  .seg button{border:0; background:transparent; color:var(--ink-soft); font:inherit; font-size:13px;
+    padding:6px 13px; border-radius:999px; cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--field); color:var(--ink); box-shadow:var(--shadow)}
+  .iconbtn{border:1px solid var(--edge); background:var(--paper-2); color:var(--ink-soft);
+    border-radius:999px; width:38px; height:38px; cursor:pointer; font-size:15px}
+
+  .lede{font-family:Spectral,Georgia,serif; font-size:clamp(18px,2.6vw,22px); color:var(--ink-soft);
+    max-width:60ch; margin:0 0 34px}
+
+  /* ---- hero reveal ---- */
+  .hero{border:1px solid var(--edge); border-radius:16px; background:
+    radial-gradient(120% 140% at 100% 0%, var(--paper-2), var(--paper)); padding:clamp(18px,3vw,28px); box-shadow:var(--shadow)}
+  .hero .eyebrow{font-size:13px; color:var(--ink-faint); margin-bottom:10px}
+  .stage{font-family:Spectral,Georgia,serif; font-size:clamp(19px,3vw,26px); line-height:1.5;
+    word-break:break-word; margin-bottom:18px}
+  .glyph{display:inline-block; min-width:.62em; text-align:center; border-radius:5px; padding:0 .05em}
+  .glyph.lit{background:var(--uv-soft); color:var(--uv); box-shadow:var(--glow);
+    outline:1px solid var(--uv-line)}
+  .hero-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .decoded{font-family:JetBrains Mono,ui-monospace,monospace; font-size:14px}
+  .decoded b{color:var(--uv)}
+
+  /* ---- buttons ---- */
+  button.act{border:0; border-radius:10px; background:var(--uv); color:#fff; font:inherit; font-weight:600;
+    padding:11px 18px; cursor:pointer; font-size:14.5px}
+  button.act.ghost{background:transparent; color:var(--uv); border:1px solid var(--uv-line)}
+  button.act.mini{padding:8px 13px; font-size:13px; font-weight:500}
+  button.act:focus-visible, .seg button:focus-visible, .iconbtn:focus-visible, input:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--uv); outline-offset:2px}
+  button:disabled{opacity:.45; cursor:not-allowed}
+
+  /* ---- panels ---- */
+  .grid{display:grid; gap:18px; grid-template-columns:1fr 1fr; margin-top:34px}
+  @media (max-width:720px){ .grid{grid-template-columns:1fr} }
+  .card{border:1px solid var(--edge); border-radius:14px; background:var(--paper-2); padding:20px; box-shadow:var(--shadow)}
+  .card.span{grid-column:1 / -1}
+  .card h3{font-size:19px; margin-bottom:4px}
+  .card .hint{font-size:13px; color:var(--ink-faint); margin-bottom:14px}
+  label.lab{display:block; font-size:12.5px; color:var(--ink-soft); margin:0 0 5px; font-weight:500}
+  textarea, input[type=text], input[type=password]{
+    width:100%; border:1px solid var(--edge); border-radius:9px; background:var(--field); color:var(--ink);
+    font-family:Inter,sans-serif; font-size:14px; padding:10px 12px; resize:vertical}
+  textarea{min-height:78px; line-height:1.5}
+  .field-block{margin-bottom:13px}
+  .opts{display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:13px; font-size:13px; color:var(--ink-soft)}
+  .opts label{display:inline-flex; align-items:center; gap:7px; cursor:pointer}
+  .actions{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  .out{margin-top:14px; border-top:1px dashed var(--edge); padding-top:14px}
+  .out.empty{color:var(--ink-faint); font-size:13.5px}
+  .result-text{border:1px solid var(--edge); border-radius:9px; background:var(--field); padding:10px 12px;
+    font-size:14px; word-break:break-word; min-height:20px}
+  .stat{font-size:12.5px; color:var(--ink-faint); margin-top:8px; font-family:JetBrains Mono,ui-monospace,monospace}
+  .msg{font-size:13px; margin-top:8px; min-height:1.2em}
+  .msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+
+  /* inspector rendering */
+  .inspect{font-family:Spectral,Georgia,serif; font-size:16px; line-height:1.9; word-break:break-word;
+    border:1px solid var(--edge); border-radius:9px; background:var(--field); padding:12px; min-height:44px}
+  .chip{display:inline-block; font-family:JetBrains Mono,ui-monospace,monospace; font-size:11px;
+    background:var(--uv-soft); color:var(--uv); border:1px solid var(--uv-line); border-radius:5px;
+    padding:1px 4px; margin:0 1px; vertical-align:baseline; transform:translateY(-1px)}
+
+  /* teach sections */
+  .teach{margin-top:12px}
+  body:not(.full) .lab-only{display:none}
+  .section{border-top:1px solid var(--edge); padding-top:26px; margin-top:34px}
+  .section h2{font-size:23px; margin-bottom:12px}
+  .section p, .section li{color:var(--ink-soft); max-width:70ch}
+  .section li{margin-bottom:7px}
+  code, .mono{font-family:JetBrains Mono,ui-monospace,monospace; font-size:.9em}
+  .k{color:var(--uv)}
+  .steps{display:grid; gap:10px; margin:14px 0; padding:0; list-style:none; counter-reset:s}
+  .steps li{counter-increment:s; padding-left:34px; position:relative}
+  .steps li::before{content:counter(s); position:absolute; left:0; top:0; width:24px; height:24px;
+    border-radius:6px; background:var(--uv-soft); color:var(--uv); border:1px solid var(--uv-line);
+    display:grid; place-items:center; font:600 12px JetBrains Mono,monospace}
+  .callout{border-left:3px solid var(--uv); background:var(--paper-2); border-radius:0 9px 9px 0;
+    padding:12px 16px; margin:14px 0; font-size:14px; color:var(--ink-soft)}
+  .callout b{color:var(--ink)}
+  footer{margin-top:48px; padding-top:20px; border-top:1px solid var(--edge);
+    font-size:12.5px; color:var(--ink-faint); display:flex; gap:14px; flex-wrap:wrap; justify-content:space-between}
+  footer a{color:var(--ink-faint); text-decoration:underline; text-underline-offset:2px}
+
+  /* ---- "in the wild" section ---- */
+  .two-lives{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:18px 0}
+  @media (max-width:640px){ .two-lives{grid-template-columns:1fr} }
+  .life{border:1px solid var(--edge); border-radius:12px; padding:16px 18px; background:var(--paper-2)}
+  .life .tag{font-family:JetBrains Mono,ui-monospace,monospace; font-size:10.5px; color:var(--uv);
+    text-transform:uppercase; letter-spacing:.09em; display:block; margin-bottom:6px}
+  .life h3{font-size:16px; margin-bottom:6px}
+  .life p{font-size:14px; margin:0; color:var(--ink-soft)}
+
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; margin:22px 0}
+  .stat-card{border:1px solid var(--edge); border-radius:12px; background:var(--paper-2); padding:15px 16px}
+  .stat-card .n{font-family:Spectral,Georgia,serif; font-weight:600; line-height:1.05; color:var(--uv);
+    font-size:clamp(24px,3.6vw,32px)}
+  .stat-card .l{font-size:12px; color:var(--ink-faint); margin-top:7px; line-height:1.4}
+
+  figure{margin:22px 0 6px}
+  .chart-wrap{border:1px solid var(--edge); border-radius:12px; background:var(--paper-2); padding:16px 16px 8px}
+  .chart-wrap svg{display:block; width:100%; height:auto}
+  .bar{fill:var(--uv); opacity:.85}
+  .bar.pre{opacity:.32}
+  .axis{fill:none; stroke:var(--edge); stroke-width:1}
+  .axlabel{fill:var(--ink-faint); font:11px JetBrains Mono,ui-monospace,monospace}
+  .annot{fill:var(--ink-soft); font:600 11px Inter,sans-serif}
+  .annot-line{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2 2}
+  figcaption{font-size:12px; color:var(--ink-faint); margin-top:10px; font-family:JetBrains Mono,ui-monospace,monospace; line-height:1.5}
+
+  blockquote.pull{border-left:3px solid var(--uv); margin:22px 0; padding:4px 0 4px 20px;
+    font-family:Spectral,Georgia,serif; font-style:italic; font-size:clamp(17px,2.5vw,21px); color:var(--ink)}
+  blockquote.pull cite{display:block; font-family:Inter,sans-serif; font-style:normal;
+    font-size:13px; color:var(--ink-faint); margin-top:12px}
+  .source-note{font-size:13px; color:var(--ink-faint); border-top:1px dashed var(--edge); margin-top:22px; padding-top:14px}
+  .source-note a{color:var(--uv)}
+
+  @media (prefers-reduced-motion: no-preference){
+    .glyph.lit{animation:pop .28s ease}
+    @keyframes pop{from{transform:scale(.8); opacity:.2} to{transform:scale(1); opacity:1}}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">🫥</span>
+      <div>
+        <h1>Ghost Ink</h1>
+        <div class="subtitle">Unicode Tags steganography · U+E0000–U+E007F</div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Detail level">
+        <button id="depthDemo" aria-pressed="true">Demo</button>
+        <button id="depthFull" aria-pressed="false">Full lab</button>
+      </div>
+      <button class="iconbtn" id="theme" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
+    </div>
+  </div>
+
+  <p class="lede">A block of Unicode called Tags encodes letters that computers read but people can’t see. This lab hides a message in that invisible layer — and shows you how to catch it.</p>
+
+  <!-- HERO: reveal -->
+  <div class="hero">
+    <div class="eyebrow">This sentence carries a hidden message. Nothing looks wrong.</div>
+    <div class="stage" id="stage" aria-live="off"></div>
+    <div class="hero-row">
+      <button class="act" id="revealBtn">Reveal hidden characters</button>
+      <div class="decoded" id="heroDecoded" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <!-- PANELS -->
+  <div class="grid">
+
+    <!-- HIDE -->
+    <div class="card">
+      <h3>Hide a message</h3>
+      <div class="hint">Your secret becomes invisible tag characters tucked into ordinary text.</div>
+      <div class="field-block">
+        <label class="lab" for="cover">Cover text (what people will see)</label>
+        <textarea id="cover">Thanks for the update — talk soon.</textarea>
+      </div>
+      <div class="field-block">
+        <label class="lab" for="secret">Secret message (what only you can read)</label>
+        <textarea id="secret">meet at the north gate, 9pm</textarea>
+      </div>
+      <div class="opts">
+        <label><input type="checkbox" id="encChk"> Encrypt with a passphrase (AES-256-GCM)</label>
+      </div>
+      <div class="field-block" id="encPassWrap" style="display:none">
+        <label class="lab" for="encPass">Passphrase</label>
+        <input type="password" id="encPass" placeholder="shared out of band">
+      </div>
+      <div class="opts">
+        <label><input type="radio" name="place" value="append" checked> Append at end</label>
+        <label><input type="radio" name="place" value="scatter"> Scatter through the text</label>
+      </div>
+      <div class="actions">
+        <button class="act" id="hideBtn">Hide it</button>
+      </div>
+      <div class="out empty" id="hideOut">Output appears here — it will look identical to the cover text.</div>
+    </div>
+
+    <!-- FIND -->
+    <div class="card">
+      <h3>Find a message</h3>
+      <div class="hint">Paste text that may carry Ghost Ink. The hidden layer is pulled back out.</div>
+      <div class="field-block">
+        <label class="lab" for="carrier">Text to read</label>
+        <textarea id="carrier" placeholder="Paste a message here…"></textarea>
+      </div>
+      <div class="field-block" id="decPassWrap" style="display:none">
+        <label class="lab" for="decPass">Passphrase (this message is encrypted)</label>
+        <input type="password" id="decPass" placeholder="the shared passphrase">
+      </div>
+      <div class="actions">
+        <button class="act" id="findBtn">Reveal message</button>
+      </div>
+      <div class="out empty" id="findOut">Recovered message appears here.</div>
+    </div>
+
+    <!-- INSPECT / STRIP -->
+    <div class="card span" id="inspect-panel">
+      <h3>Inspect &amp; clean</h3>
+      <div class="hint">The defensive side. Make every hidden character visible, then remove them. This is how a filter — or a careful reader — defeats the trick.</div>
+      <div class="field-block">
+        <label class="lab" for="inspectIn">Any text</label>
+        <textarea id="inspectIn" placeholder="Paste something to X-ray…">Approved for up to $5M in funding — review terms and confirm next steps.</textarea>
+      </div>
+      <div class="actions">
+        <button class="act" id="inspectBtn">Show hidden characters</button>
+        <button class="act ghost mini" id="lureBtn">Load a real spam lure</button>
+        <button class="act ghost mini" id="stripBtn">Copy cleaned text</button>
+      </div>
+      <div class="out" id="inspectOut">
+        <div class="inspect" id="inspectRender" aria-live="polite">Nothing inspected yet.</div>
+        <div class="stat" id="inspectStat"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TEACHING: how it works -->
+  <section class="section">
+    <h2>What just happened</h2>
+    <p>Unicode reserves a block called <b>Tags</b> from U+E0000 to U+E007F. Almost all of it mirrors plain ASCII: U+E0041 stands in for “A”, U+E0061 for “a”, U+E0020 for a space. The characters exist in the text and travel with it, but fonts render them to nothing, so a person sees only the cover text.</p>
+    <ol class="steps">
+      <li>Your secret is turned into bytes, then Base64 so every character lands in the printable ASCII range.</li>
+      <li>Each of those characters is shifted up by <span class="mono k">0xE0000</span> into the Tags block — same letter, now invisible.</li>
+      <li>The invisible run is appended to (or scattered through) the cover text. Position doesn’t matter: a reader collects the tag characters in order and shifts them back down.</li>
+    </ol>
+    <div class="callout lab-only"><b>Container format.</b> Before Base64, the payload is one version byte, one flags byte (plaintext or AES-GCM), then either the UTF-8 message or <span class="mono">salt(16) · iv(12) · ciphertext</span>. With encryption on, the key comes from your passphrase via PBKDF2-SHA256 (210,000 iterations) and the message is sealed with AES-256-GCM in your browser — no bytes leave the page.</div>
+  </section>
+
+  <!-- TEACHING: in the wild -->
+  <section class="section" id="wild">
+    <h2>How attackers use this in the wild</h2>
+    <p>This is not a party trick. The exact carrier this page demonstrates — the Unicode Tags block — is a live technique known as <b>ASCII smuggling</b>. It has had two lives, and a user’s suspicions are never raised in either one.</p>
+
+    <div class="two-lives">
+      <div class="life">
+        <span class="tag">Life one · against AI</span>
+        <h3>Smuggling instructions into a model</h3>
+        <p>Malicious instructions are written in invisible tags and pasted into an email, a web page, or a document an LLM will process. The model reads the hidden commands as ordinary text; the human reviewing the same content sees nothing. This is a stealthy form of <b>prompt injection</b>, and it’s where the technique first drew attention.</p>
+      </div>
+      <div class="life">
+        <span class="tag">Life two · against filters</span>
+        <h3>Obfuscating keywords from a detector</h3>
+        <p>Spammers slip invisible tags <i>inside</i> trigger words so a filter no longer recognizes them, while the recipient reads the word normally. Same mechanism, inverted goal: instead of adding a hidden instruction, they’re hiding a visible keyword from the machine that scores it.</p>
+      </div>
+    </div>
+
+    <p>In early 2026, Microsoft watched the second use explode. Daily hits on its ASCII-smuggling detection signature in Microsoft&nbsp;Defender for Office jumped from a low baseline of roughly 21,000 a day to more than 1.3&nbsp;million on a single day in early February, and to 2.5&nbsp;million within four days. The bulk of it was finance-themed spam — fake pre-approvals for credit lines and “bridge funding.”</p>
+
+    <div class="stats">
+      <div class="stat-card"><div class="n">~21K</div><div class="l">signature hits per day, pre-onset baseline</div></div>
+      <div class="stat-card"><div class="n">2.37M</div><div class="l">peak daily hits, Feb 11, 2026</div></div>
+      <div class="stat-card"><div class="n">~113×</div><div class="l">jump from baseline to peak</div></div>
+      <div class="stat-card"><div class="n">3+ mo.</div><div class="l">campaign ran Feb 9 → mid-May</div></div>
+    </div>
+
+    <figure>
+      <div class="chart-wrap"><div id="wildChart" role="img"
+        aria-label="Bar chart of daily worldwide ASCII-smuggling signature hits, February 2 to 16, 2026: a near-zero baseline through February 8, then a spike to 1.32 million on February 9, 1.81 million on the 10th, a peak of 2.37 million on the 11th, roughly 2 million on the 12th and 13th, a drop on the 14th, a Sunday dip to 14 thousand on the 15th, and a rebound to 1.25 million on the 16th."></div></div>
+      <figcaption>Daily worldwide hits on the ASCII-smuggling signature around onset, Feb 2–16, 2026. Data: Microsoft, via Ars Technica.</figcaption>
+    </figure>
+
+    <p>The email angle is subtler than plain hiding, and it is aimed squarely at machine-learning classifiers. A word like <span class="mono">funding</span> is a clean, familiar unit to a model’s tokenizer. Slip an invisible <span class="mono k">U+E0020</span> into the middle and the tokenizer may split it into <span class="mono">fun</span> and <span class="mono">ding</span>, or emit rare tokens the model has never weighted — while the recipient still reads “funding.” The lure survives; the filter’s view of it does not. <b>Want to see it?</b> Load the spam lure in the <a href="#inspect-panel">Inspect&nbsp;&amp;&nbsp;clean</a> panel above and X-ray it.</p>
+
+    <blockquote class="pull">“Because tag characters are invisible to humans but exist at the text-processing level, the same property that makes them useful for smuggling instructions into a model also makes them useful for obfuscating keywords before a detector evaluates them. The intent is inverted, but the mechanism is similar, and a user’s suspicions are not raised.”
+      <cite>— Microsoft, quoted by Ars Technica, Sept.&nbsp;2026</cite>
+    </blockquote>
+
+    <p>Camouflaging trigger words isn’t new — spammers have leaned on zero-width and non-breaking spaces for decades to break literal-string matches. What’s new is the target. The bigger prize is no longer defeating a keyword search; it’s defeating the ML- and NLP-based models that now drive spam and phishing classification. Unless a filter renders the message to an image and runs OCR over it, the invisible tags can quietly change what the model “reads.”</p>
+
+    <p class="source-note">Reporting and figures drawn from Dan Goodin, <a href="https://arstechnica.com/security/2026/09/once-popular-for-attacking-ai-ascii-smuggling-is-embraced-by-spammers/" target="_blank" rel="noopener noreferrer">“Once popular for attacking AI, ASCII smuggling is embraced by spammers,”</a> <i>Ars Technica</i>, Sept.&nbsp;4,&nbsp;2026, which is based on research published by Microsoft. This page is an independent educational demo and is not affiliated with either.</p>
+  </section>
+
+  <!-- TEACHING: honest limits -->
+  <section class="section">
+    <h2>Where this is weak</h2>
+    <ul>
+      <li><b>Hiding the content is strong; hiding its existence is not.</b> The AES-GCM layer protects what the message says even if the text is intercepted. But the <i>presence</i> of a payload is trivial to detect — the Inspect panel above does it in one pass, and so do published filter signatures.</li>
+      <li><b>It does not survive everywhere.</b> Many platforms and editors normalize or strip tag characters on paste or send, so the ghost layer can silently vanish in transit.</li>
+      <li><b>Not a substitute for a covert channel.</b> Treat this as a teaching model of a known technique, not a way to move messages past a real adversary. Modern detectors already flag it — which is exactly why understanding it matters for defense.</li>
+    </ul>
+    <p class="mono" style="font-size:12px; color:var(--ink-faint)">Real primitives, no simulated math. Crypto via WebCrypto SubtleCrypto. Everything runs client-side.</p>
+  </section>
+
+  <footer>
+    <span>Ghost Ink — a steganography exhibit. Background: <a href="https://arstechnica.com/security/2026/09/once-popular-for-attacking-ai-ascii-smuggling-is-embraced-by-spammers/" target="_blank" rel="noopener noreferrer">Ars Technica</a> · <a href="https://github.com/systemslibrarian/ghost-ink" target="_blank" rel="noopener noreferrer">source</a></span>
+    <span class="mono">carrier: Unicode Tags · cipher: AES-256-GCM · kdf: PBKDF2-SHA256</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const TAG_BASE = 0xE0000;
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  const $ = id => document.getElementById(id);
+
+  /* ---------- tag mapping ---------- */
+  const isTag = cp => cp >= 0xE0000 && cp <= 0xE007F;
+  function toTags(ascii){ // ascii chars assumed 0x20..0x7E
+    let out = "";
+    for (const ch of ascii){ out += String.fromCodePoint(TAG_BASE + ch.charCodeAt(0)); }
+    return out;
+  }
+  function tagsToAscii(str){
+    let out = "";
+    for (const ch of str){
+      const cp = ch.codePointAt(0);
+      if (isTag(cp)){ const b = cp - TAG_BASE; if (b >= 0x20 && b <= 0x7E) out += String.fromCharCode(b); }
+    }
+    return out;
+  }
+  function splitTags(str){ // -> {visible, hidden(ascii), tagCount}
+    let visible = "", hidden = "", n = 0;
+    for (const ch of str){
+      const cp = ch.codePointAt(0);
+      if (isTag(cp)){ n++; const b = cp - TAG_BASE; if (b >= 0x20 && b <= 0x7E) hidden += String.fromCharCode(b); }
+      else visible += ch;
+    }
+    return {visible, hidden, tagCount:n};
+  }
+
+  /* ---------- base64 over bytes ---------- */
+  function bytesToB64(bytes){
+    let s = ""; for (const b of bytes) s += String.fromCharCode(b);
+    return btoa(s);
+  }
+  function b64ToBytes(b64){
+    const s = atob(b64); const out = new Uint8Array(s.length);
+    for (let i=0;i<s.length;i++) out[i]=s.charCodeAt(i);
+    return out;
+  }
+
+  /* ---------- container: [ver, flags, ...] ---------- */
+  const VER = 1, F_PLAIN = 0, F_ENC = 1;
+  function packPlain(msg){
+    const body = enc.encode(msg);
+    const out = new Uint8Array(2 + body.length);
+    out[0]=VER; out[1]=F_PLAIN; out.set(body,2);
+    return out;
+  }
+  async function packEnc(msg, pass){
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const km = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey(
+      {name:"PBKDF2", salt, iterations:210000, hash:"SHA-256"},
+      km, {name:"AES-GCM", length:256}, false, ["encrypt"]);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, enc.encode(msg)));
+    const out = new Uint8Array(2 + 16 + 12 + ct.length);
+    out[0]=VER; out[1]=F_ENC; out.set(salt,2); out.set(iv,18); out.set(ct,30);
+    return out;
+  }
+  async function unpack(bytes, pass){
+    if (bytes.length < 2 || bytes[0] !== VER) throw {code:"format"};
+    const flags = bytes[1];
+    if (flags === F_PLAIN) return {text:dec.decode(bytes.slice(2)), encrypted:false};
+    if (flags === F_ENC){
+      if (pass == null) throw {code:"needpass"};
+      const salt = bytes.slice(2,18), iv = bytes.slice(18,30), ct = bytes.slice(30);
+      const km = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
+      const key = await crypto.subtle.deriveKey(
+        {name:"PBKDF2", salt, iterations:210000, hash:"SHA-256"},
+        km, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+      try{
+        const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, ct);
+        return {text:dec.decode(pt), encrypted:true};
+      }catch(e){ throw {code:"badpass"}; }
+    }
+    throw {code:"format"};
+  }
+  // returns {encrypted:boolean} without decrypting — to know if a passphrase is needed
+  function peek(bytes){
+    if (bytes.length < 2 || bytes[0] !== VER) return null;
+    return {encrypted: bytes[1] === F_ENC};
+  }
+
+  /* ---------- weave payload into cover ---------- */
+  function weave(cover, tags, mode){
+    if (mode === "append" || cover.length === 0) return cover + tags;
+    // scatter: distribute tag chars between visible chars, roughly evenly
+    const coverChars = [...cover], tagChars = [...tags];
+    if (tagChars.length === 0) return cover;
+    const slots = coverChars.length;
+    const per = tagChars.length / slots;
+    let out = "", acc = 0, ti = 0;
+    for (let i=0;i<coverChars.length;i++){
+      out += coverChars[i];
+      acc += per;
+      while (ti < tagChars.length && (acc >= 1 || i === coverChars.length-1)){
+        out += tagChars[ti++]; acc -= 1;
+      }
+    }
+    while (ti < tagChars.length) out += tagChars[ti++];
+    return out;
+  }
+
+  /* =========================================================
+     HERO
+  ========================================================= */
+  const heroCover = "Great catching up yesterday. Let’s sync again next week.";
+  const heroSecret = "the package is under the third bench";
+  const heroStego = heroCover + toTags(bytesToB64(packPlain(heroSecret)));
+  const stage = $("stage");
+  function paintStage(lit){
+    stage.innerHTML = "";
+    for (const ch of heroStego){
+      const cp = ch.codePointAt(0);
+      const span = document.createElement("span");
+      span.className = "glyph";
+      if (isTag(cp)){
+        const b = cp - TAG_BASE;
+        span.textContent = lit ? (b>=0x20 && b<=0x7e ? String.fromCharCode(b) : "·") : "\u200b";
+        if (lit) span.classList.add("lit");
+        else span.style.width = "0";
+      } else {
+        span.textContent = ch;
+        span.style.minWidth = "0";
+        span.style.display = "inline";
+      }
+      stage.appendChild(span);
+    }
+  }
+  paintStage(false);
+  let heroLit = false;
+  $("revealBtn").addEventListener("click", async () => {
+    heroLit = !heroLit;
+    paintStage(heroLit);
+    $("revealBtn").textContent = heroLit ? "Hide again" : "Reveal hidden characters";
+    if (heroLit){
+      const {hidden} = splitTags(heroStego);
+      const res = await unpack(b64ToBytes(hidden), null).catch(()=>null);
+      $("heroDecoded").innerHTML = res ? `hidden message: <b>${escapeHtml(res.text)}</b>` : "";
+    } else {
+      $("heroDecoded").textContent = "";
+    }
+  });
+
+  /* =========================================================
+     HIDE
+  ========================================================= */
+  $("encChk").addEventListener("change", e => {
+    $("encPassWrap").style.display = e.target.checked ? "" : "none";
+  });
+  $("hideBtn").addEventListener("click", async () => {
+    const cover = $("cover").value;
+    const secret = $("secret").value;
+    const out = $("hideOut");
+    if (!secret){ setOut(out, "Add a secret message to hide.", "bad"); return; }
+    const mode = document.querySelector('input[name=place]:checked').value;
+    let bytes;
+    try{
+      if ($("encChk").checked){
+        const pass = $("encPass").value;
+        if (!pass){ setOut(out, "Enter a passphrase, or turn off encryption.", "bad"); return; }
+        bytes = await packEnc(secret, pass);
+      } else {
+        bytes = packPlain(secret);
+      }
+    }catch(e){ setOut(out, "Could not build the message.", "bad"); return; }
+
+    const tags = toTags(bytesToB64(bytes));
+    const stego = weave(cover, tags, mode);
+    out.className = "out";
+    out.innerHTML = "";
+    const box = document.createElement("div"); box.className = "result-text"; box.textContent = stego;
+    const stat = document.createElement("div"); stat.className = "stat";
+    stat.textContent = `${[...stego].length - [...cover].length} invisible characters added · looks identical to the cover`;
+    const btn = document.createElement("button"); btn.className = "act mini"; btn.textContent = "Copy";
+    btn.style.marginTop = "10px";
+    btn.addEventListener("click", () => copy(stego, btn));
+    out.append(box, stat, btn);
+  });
+
+  /* =========================================================
+     FIND
+  ========================================================= */
+  const carrier = $("carrier");
+  function refreshDecState(){
+    const {hidden, tagCount} = splitTags(carrier.value);
+    let needPass = false;
+    if (tagCount){
+      try{ const p = peek(b64ToBytes(hidden)); needPass = !!(p && p.encrypted); }catch(e){}
+    }
+    $("decPassWrap").style.display = needPass ? "" : "none";
+  }
+  carrier.addEventListener("input", refreshDecState);
+  $("findBtn").addEventListener("click", async () => {
+    const out = $("findOut");
+    const {hidden, tagCount} = splitTags(carrier.value);
+    if (!tagCount){ setOut(out, "No hidden characters found in this text.", "bad"); return; }
+    let bytes;
+    try{ bytes = b64ToBytes(hidden); }
+    catch(e){ setOut(out, "Found hidden characters, but they aren’t a Ghost Ink payload.", "bad"); return; }
+    try{
+      const res = await unpack(bytes, $("decPass").value || null);
+      out.className = "out"; out.innerHTML = "";
+      const box = document.createElement("div"); box.className="result-text"; box.textContent = res.text;
+      const stat = document.createElement("div"); stat.className="stat";
+      stat.textContent = res.encrypted ? "decrypted with your passphrase (AES-256-GCM)" : "plaintext payload — no encryption";
+      out.append(box, stat);
+    }catch(err){
+      if (err.code === "needpass"){ $("decPassWrap").style.display=""; setOut(out, "This message is encrypted — enter the passphrase.", "bad"); }
+      else if (err.code === "badpass") setOut(out, "Wrong passphrase, or the message was altered.", "bad");
+      else setOut(out, "Hidden characters found, but they aren’t a valid Ghost Ink payload.", "bad");
+    }
+  });
+
+  /* =========================================================
+     INSPECT / STRIP
+  ========================================================= */
+  $("inspectBtn").addEventListener("click", async () => {
+    const text = $("inspectIn").value;
+    const render = $("inspectRender");
+    render.innerHTML = "";
+    let tagCount = 0, hidden = "";
+    for (const ch of text){
+      const cp = ch.codePointAt(0);
+      if (isTag(cp)){
+        tagCount++;
+        const b = cp - TAG_BASE;
+        if (b>=0x20 && b<=0x7e) hidden += String.fromCharCode(b);
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        const shown = (b===0x20) ? "␣" : (b>=0x21 && b<=0x7e ? String.fromCharCode(b) : "•");
+        chip.textContent = `${shown} U+${cp.toString(16).toUpperCase()}`;
+        render.appendChild(chip);
+      } else {
+        render.appendChild(document.createTextNode(ch));
+      }
+    }
+    if (tagCount === 0){ render.textContent = "Clean — no Tags-block characters found."; $("inspectStat").textContent=""; return; }
+    const n = `${tagCount} hidden character${tagCount>1?"s":""}`;
+    try{
+      const r = await unpack(b64ToBytes(hidden), null);
+      $("inspectStat").innerHTML = `${n} · recovered payload: <span class="k">${escapeHtml(r.text)}</span>`;
+    }catch(e){
+      if (e.code === "needpass")
+        $("inspectStat").innerHTML = `${n} · an encrypted Ghost Ink payload — a passphrase is required to read it`;
+      else
+        $("inspectStat").innerHTML = `${n} · no Ghost Ink payload here — the invisible tags are woven <b>inside the visible words</b>, the hallmark of keyword obfuscation (see the highlighted chips above)`;
+    }
+  });
+  // Load a real-world spam lure: invisible tag chars slipped inside trigger words
+  $("lureBtn").addEventListener("click", () => {
+    const T = String.fromCodePoint(0xE0020); // invisible tag "space"
+    const lure =
+      "You've been pre-approved for up to $5" + T + "M in fun" + T + "ding through our " +
+      "Line of Cre" + T + "dit or Bridge Fun" + T + "ding programs. Review your ter" + T + "ms and confirm next steps.";
+    $("inspectIn").value = lure;
+    $("inspectBtn").click();
+    $("inspect-panel").scrollIntoView({behavior:"smooth", block:"center"});
+  });
+
+  /* =========================================================
+     "IN THE WILD" chart — Microsoft signature hits, Feb 2026
+     Source: Ars Technica / Microsoft. Illustrative daily values (millions).
+  ========================================================= */
+  (function drawWildChart(){
+    const host = $("wildChart");
+    if (!host) return;
+    const data = [
+      ["Feb 2",0.005,true],["Feb 3",0.010,true],["Feb 4",0.012,true],["Feb 5",0.008,true],
+      ["Feb 6",0.011,true],["Feb 7",0.013,true],["Feb 8",0.020,true],["Feb 9",1.32,false],
+      ["Feb 10",1.81,false],["Feb 11",2.37,false],["Feb 12",2.00,false],["Feb 13",2.03,false],
+      ["Feb 14",0.49,false],["Feb 15",0.014,false],["Feb 16",1.25,false]
+    ];
+    const W=640, H=260, L=44, R=12, T=26, B=40;
+    const plotW=W-L-R, plotH=H-T-B;
+    const max=2.5, ticks=[0,0.5,1,1.5,2,2.5];
+    const y=v=>T+plotH*(1-v/max);
+    const bw=plotW/data.length, iw=bw*0.62;
+    const NS="http://www.w3.org/2000/svg";
+    const svg=document.createElementNS(NS,"svg");
+    svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+    svg.setAttribute("preserveAspectRatio","xMidYMid meet");
+    const el=(tag,attrs,text)=>{ const e=document.createElementNS(NS,tag);
+      for(const k in attrs) e.setAttribute(k,attrs[k]); if(text!=null) e.textContent=text; svg.appendChild(e); return e; };
+    // gridlines + y labels
+    for(const t of ticks){
+      el("line",{x1:L,y1:y(t),x2:W-R,y2:y(t),class:"axis"});
+      el("text",{x:L-8,y:y(t)+3,"text-anchor":"end",class:"axlabel"}, t===0?"0":t+"M");
+    }
+    // bars + x labels (every other, to stay legible)
+    data.forEach(([label,val,pre],i)=>{
+      const x=L+i*bw+(bw-iw)/2;
+      const h=Math.max(1.2, plotH*(val/max));
+      el("rect",{x:x.toFixed(1),y:(T+plotH-h).toFixed(1),width:iw.toFixed(1),height:h.toFixed(1),
+        rx:2,class:pre?"bar pre":"bar"});
+      if(i%2===0) el("text",{x:(L+i*bw+bw/2).toFixed(1),y:H-B+16,"text-anchor":"middle",class:"axlabel"},label.replace("Feb ",""));
+    });
+    el("text",{x:L,y:H-6,class:"axlabel"},"February 2026");
+    // annotations
+    const px=L+9*bw+bw/2;                          // Feb 11 peak (index 9)
+    el("line",{x1:px,y1:y(2.37)-6,x2:px,y2:y(2.37)-22,class:"annot-line"});
+    el("text",{x:px,y:y(2.37)-26,"text-anchor":"middle",class:"annot"},"peak 2.37M");
+    const ox=L+7*bw+bw/2;                          // Feb 9 onset (index 7)
+    el("text",{x:ox+2,y:y(1.32)-8,"text-anchor":"middle",class:"annot"},"onset");
+    host.appendChild(svg);
+  })();
+  $("stripBtn").addEventListener("click", () => {
+    const clean = [...$("inspectIn").value].filter(ch => !isTag(ch.codePointAt(0))).join("");
+    copy(clean, $("stripBtn"), "Copied cleaned text");
+  });
+
+  /* =========================================================
+     chrome: depth + theme
+  ========================================================= */
+  function setDepth(full){
+    document.body.classList.toggle("full", full);
+    $("depthFull").setAttribute("aria-pressed", String(full));
+    $("depthDemo").setAttribute("aria-pressed", String(!full));
+  }
+  $("depthDemo").addEventListener("click", ()=>setDepth(false));
+  $("depthFull").addEventListener("click", ()=>setDepth(true));
+
+  $("theme").addEventListener("click", () => {
+    const cur = document.documentElement.getAttribute("data-theme");
+    const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = cur ? cur === "dark" : prefersDark;
+    document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
+  });
+
+  /* ---------- helpers ---------- */
+  function setOut(el, text, kind){
+    el.className = "out"; el.innerHTML = "";
+    const m = document.createElement("div"); m.className = "msg " + (kind||""); m.textContent = text;
+    el.appendChild(m);
+  }
+  function escapeHtml(s){ return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+  async function copy(text, btn, label){
+    const old = btn.textContent;
+    try{ await navigator.clipboard.writeText(text); btn.textContent = label || "Copied"; }
+    catch(e){ btn.textContent = "Copy failed"; }
+    setTimeout(()=>{ btn.textContent = old; }, 1400);
+  }
+
+  refreshDecState();
+})();
+</script>
+</body>
+</html>

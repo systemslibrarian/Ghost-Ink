@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.log
+
+# Local reference material — not part of the published site
+*.pdf
+*.zip
