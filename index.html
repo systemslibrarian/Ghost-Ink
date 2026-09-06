@@ -178,6 +178,9 @@
   .chip.zw{background:color-mix(in srgb, var(--warn) 16%, transparent); color:var(--warn); border-color:color-mix(in srgb, var(--warn) 55%, transparent)}
   .chip.bidi{background:color-mix(in srgb, var(--bad) 15%, transparent); color:var(--bad); border-color:color-mix(in srgb, var(--bad) 55%, transparent)}
   .chip.space{background:var(--paper); color:var(--ink-faint); border-color:var(--edge)}
+  /* compact chips, for showing payload positions inline in a hide result */
+  .chip.tight{font-size:10.5px; padding:0 3px; margin:0; border-radius:4px}
+  .result-text.lit{line-height:2}
   .legend{display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:12px; font-size:11.5px; color:var(--ink-faint);
     font-family:JetBrains Mono,ui-monospace,monospace}
   .legend[hidden]{display:none}
@@ -316,6 +319,8 @@
       </div>
       <div class="actions">
         <button class="act" id="hideBtn">Hide it</button>
+        <button class="act ghost mini" id="hideRevealBtn" hidden>Reveal hidden characters</button>
+        <button class="act ghost mini" id="hideClear" title="Clear this panel">Clear</button>
       </div>
       <div class="out empty" id="hideOut">Output appears here — it will look identical to the cover text.</div>
     </div>
@@ -337,6 +342,7 @@
       </div>
       <div class="actions">
         <button class="act" id="findBtn">Reveal message</button>
+        <button class="act ghost mini" id="findClear" title="Clear this panel">Clear</button>
       </div>
       <div class="out empty" id="findOut">Recovered message appears here.</div>
     </div>
@@ -689,16 +695,72 @@
     }catch(e){ setOut(out, "Could not build the message.", "bad"); return; }
 
     const tags = toTags(bytesToB64(bytes));
-    const stego = weave(cover, tags, mode);
-    out.className = "out";
-    out.innerHTML = "";
-    const box = document.createElement("div"); box.className = "result-text"; box.textContent = stego;
+    lastStego = weave(cover, tags, mode);
+    lastCover = cover;
+    lastMode = mode;
+    hideLit = false;
+    renderHideOut();
+  });
+
+  /* The hide result, drawn either as-is or with every invisible character
+     shown in place — the point being to see *where* the payload landed,
+     which is the whole difference between "append" and "scatter". */
+  let lastStego = null, lastCover = "", lastMode = "append", hideLit = false;
+  function renderHideOut(){
+    const out = $("hideOut"), revealBtn = $("hideRevealBtn");
+    if (lastStego === null){
+      out.className = DEF.hideOut.cls; out.innerHTML = DEF.hideOut.html;
+      revealBtn.hidden = true;
+      revealBtn.textContent = "Reveal hidden characters";
+      return;
+    }
+    revealBtn.hidden = false;
+    revealBtn.textContent = hideLit ? "Hide characters again" : "Reveal hidden characters";
+    out.className = "out"; out.innerHTML = "";
+
+    const box = document.createElement("div");
+    box.className = hideLit ? "result-text lit" : "result-text";
+    if (hideLit){
+      for (const ch of lastStego){
+        const cat = classify(ch.codePointAt(0));
+        if (cat){
+          const cp = ch.codePointAt(0);
+          const chip = document.createElement("span");
+          chip.className = "chip tight " + cat;
+          chip.textContent = cpName(cp, cat).replace(/[“”]/g, "");
+          chip.title = `${INV[cat].label} ${U(cp)}`;
+          box.appendChild(chip);
+        } else {
+          box.appendChild(document.createTextNode(ch));
+        }
+      }
+    } else {
+      box.textContent = lastStego;
+    }
+
+    const added = [...lastStego].length - [...lastCover].length;
     const stat = document.createElement("div"); stat.className = "stat";
-    stat.textContent = `${[...stego].length - [...cover].length} invisible characters added · looks identical to the cover`;
+    stat.textContent = hideLit
+      ? `${added} invisible characters, shown in place · ${lastMode === "scatter" && lastCover
+          ? "spread through the visible text" : "appended after the cover text"}`
+      : `${added} invisible characters added · looks identical to the cover`;
+
     const btn = document.createElement("button"); btn.className = "act mini"; btn.textContent = "Copy";
     btn.style.marginTop = "10px";
-    btn.addEventListener("click", () => copy(stego, btn));
+    btn.addEventListener("click", () => copy(lastStego, btn));
     out.append(box, stat, btn);
+  }
+  $("hideRevealBtn").addEventListener("click", () => { hideLit = !hideLit; renderHideOut(); });
+
+  $("hideClear").addEventListener("click", () => {
+    $("cover").value = "";
+    $("secret").value = "";
+    $("encPass").value = ""; $("encPass").type = "password";
+    $("encPassShow").textContent = "Show";
+    $("encPassMeter").textContent = ""; $("encPassMeter").className = "pass-strength";
+    lastStego = null; hideLit = false;
+    renderHideOut();
+    $("secret").focus();
   });
 
   /* =========================================================
@@ -733,6 +795,15 @@
       else if (err.code === "badpass") setOut(out, "Wrong passphrase, or the message was altered.", "bad");
       else setOut(out, "Hidden characters found, but they aren’t a valid Ghost Ink payload.", "bad");
     }
+  });
+
+  $("findClear").addEventListener("click", () => {
+    carrier.value = "";
+    $("decPass").value = ""; $("decPass").type = "password";
+    $("decPassShow").textContent = "Show";
+    $("findOut").className = DEF.findOut.cls; $("findOut").innerHTML = DEF.findOut.html;
+    refreshDecState();
+    carrier.focus();
   });
 
   /* =========================================================
@@ -895,7 +966,8 @@
     $("encPassShow").textContent = "Show";
     $("encPassMeter").textContent = ""; $("encPassMeter").className = "pass-strength";
     document.querySelector('input[name=place][value="append"]').checked = true;
-    $("hideOut").className = DEF.hideOut.cls; $("hideOut").innerHTML = DEF.hideOut.html;
+    lastStego = null; hideLit = false;
+    renderHideOut();
     // find panel
     $("carrier").value = "";
     $("decPassWrap").style.display = "none";
