@@ -66,6 +66,38 @@ Four panels turn the technique into something you do rather than read about:
   and it swaps in Cyrillic or Greek lookalikes, then shows the `xn--` Punycode form
   your browser would fall back to.
 
+## The same trick, other disguises
+
+Five more panels, none of which hide anything *in* a character. They are here
+because the failure they share is the one that matters: two readers of a single
+artefact disagree, and only one of those readers is you.
+
+- **Display order vs. stored order** — Trojan Source (Boucher & Anderson, 2021;
+  CVE-2021-42574). Bidi controls change the order text is *drawn* without touching
+  the order it is *stored*. The right-hand pane puts every character in its own
+  isolated inline-block, which defeats bidi reordering, so what you read there is
+  genuinely the storage order a compiler or filesystem sees.
+- **What a scraper reads** — no unusual codepoint at all. The text is ordinary;
+  the *renderer* is told not to draw it, via `color:#fff`, `display:none`, or
+  off-screen positioning. `textContent` returns every word. This is how prompt
+  injection actually arrives on the open web, and it is exactly the case the
+  Inspect panel cannot catch — the concealment is in the CSS, not the encoding.
+- **What actually reaches your clipboard** — pastejacking. The block shows one
+  command and copying it yields another. The substitute is inert and announces
+  itself; the mechanism is the lesson, and a demo that handed you a working
+  command would be the thing it warns about.
+- **Clean before, dirty after** — a blocklist that checks a string *before* the
+  system normalises it is checking something that will not exist by the time it
+  matters. `ａｄｍｉｎ` passes and NFKC turns it into `admin`; `api_toKen` (with a
+  Kelvin sign) survives NFKC and dies only to case folding, which is the sharper
+  lesson: normalising is not enough unless you apply *every* transform the system
+  will apply.
+- **The low bit of a picture** — LSB stego on a canvas. Bit 0 of every red, green
+  and blue byte carries one bit of payload, a change of at most 1/255 per channel;
+  the difference view amplifies 64× before anything is visible. Same container
+  format as every text carrier here, different medium underneath. Your own image
+  can be loaded and never leaves the browser.
+
 ## How it works
 
 ```
@@ -215,6 +247,11 @@ Two suites:
   payloads, carrier auto-detection, the variation-selector block boundary, SNOW's
   blind spot (asserted, not assumed: a codepoint-only detector sees nothing there),
   and confusable folding.
+
+The five disguise panels are covered by the jsdom pass rather than the unit
+suites — including that the scraper panel's sanitiser strips `<script>` elements
+and event-handler attributes before rendering a fragment, and that LSB hiding
+moves no channel by more than 1.
 
 ## License
 
