@@ -4,7 +4,7 @@ Hide a message in the invisible Unicode **Tags** block (U+E0000–U+E007F), then
 detect and strip it. The core is one self-contained HTML page — no build step,
 no backend — and it installs as an app (PWA) on desktop, Android, and iPhone.
 
-**[Live demo](https://systemslibrarian.github.io/ghost-ink/)**
+**[Live demo](https://systemslibrarian.github.io/Ghost-Ink/)**
 
 ## What it is
 
