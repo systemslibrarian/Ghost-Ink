@@ -57,6 +57,14 @@ Four panels turn the technique into something you do rather than read about:
 - **Leak tracer** — one document, several recipients, a different invisible
   watermark scattered through each copy. Paste a leaked copy back and it names the
   recipient. A real deployed use of the technique, not a hypothetical.
+- **Hide it behind one emoji** — Paul Butler's framing of the variation-selector
+  trick. Selectors bind to the character in front of them, so a whole message can
+  ride on a single glyph. (The hosts on offer are all single codepoints on purpose:
+  an emoji like ❤️ already ends in U+FE0F, which would corrupt the payload.)
+- **Look-alike forge** — the homoglyph family, which is the opposite of everything
+  else here: nothing is hidden, the characters are visible impostors. Type a domain
+  and it swaps in Cyrillic or Greek lookalikes, then shows the `xn--` Punycode form
+  your browser would fall back to.
 
 ## How it works
 
@@ -88,6 +96,14 @@ used: it tries each and accepts the first that yields a valid container.
 | **Unicode Tags** | U+E0000–E007F | 1.33 chars | Mirrors ASCII. The ASCII-smuggling carrier. |
 | **Variation selectors** | U+FE00–FE0F, U+E0100–E01EF | 1 char | Exactly 256 slots, so one selector carries one whole byte. The "emoji smuggling" carrier. |
 | **Zero-width** | ZWSP / ZWNJ / ZWJ / word joiner | 4 chars | Two bits per character. Bulky, but the most widely supported. |
+| **Trailing whitespace** | U+0020 / U+0009 | 8 chars | SNOW, the 1990s ancestor. Space is 0, tab is 1. Always appended — scattering it through a sentence would be plainly visible. |
+
+The whitespace carrier is in there for a reason beyond nostalgia: it uses no
+exotic codepoint at all, so a detector built purely around unusual characters —
+like the one on this page — **cannot see it by lookup**. The Inspect panel has to
+find it positionally instead, as a run of trailing whitespace. It is the clearest
+demonstration on the page that a detector is only as good as the assumption it
+was built on.
 
 ## The detector catches more than its own trick
 
@@ -101,10 +117,24 @@ has to watch, colour-coded by category, and strips them on request:
 - **Zero-width & format** characters (ZWSP, ZWNJ, ZWJ, word joiner, BOM, soft hyphen…).
 - **Bidirectional controls** (RLO/LRO/…) — the Trojan Source display-reordering trick.
 - **Unusual spaces** (NBSP and friends) that stand in for ordinary spaces.
+- **Trailing whitespace runs** — the SNOW carrier, caught by position rather than
+  by codepoint.
+- **Look-alikes** (UTS #39 confusables) — Cyrillic `а`, Greek `ο`, fullwidth `ａ`
+  and friends imitating ASCII. These are *visible* impostors, so deleting them is
+  the wrong repair: the panel recovers the ASCII skeleton (`раypal.com` is
+  pretending to be `paypal.com`) and offers **Copy ASCII-folded text** alongside
+  **Copy cleaned text**.
 
-Built-in examples load a Tags spam lure, a zero-width payload, and a bidi
-(Trojan Source) case so you can see each light up, and the panel X-rays as you
-type rather than waiting for a button press.
+Built-in examples load a Tags spam lure, a zero-width payload, a bidi
+(Trojan Source) case, a look-alike domain, and a SNOW payload so you can see each
+light up, and the panel X-rays as you type rather than waiting for a button press.
+
+The page also names the tools that already do this in production — VS Code's
+`editor.unicodeHighlight.*`, GitHub's bidi banner, the Rust compiler's lint,
+browser Punycode display rules, Defender for Office — and is explicit about the
+neighbouring fields it *cannot* honestly demonstrate in one HTML file: Meteor-style
+stego in a model's token choices, SynthID/green-list watermarking, and LSB stego
+in other media.
 
 ## Honest limitations
 
@@ -182,7 +212,9 @@ Two suites:
 - `test/carriers.mjs` — slices the page's *own* pure codec section out of
   `index.html` and exercises all three carriers as shipped: byte round trips,
   advertised cost vs. actual output, survival through both weave modes, encrypted
-  payloads, carrier auto-detection, and the variation-selector block boundary.
+  payloads, carrier auto-detection, the variation-selector block boundary, SNOW's
+  blind spot (asserted, not assumed: a codepoint-only detector sees nothing there),
+  and confusable folding.
 
 ## License
 

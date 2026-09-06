@@ -161,7 +161,7 @@
   .out{margin-top:14px; border-top:1px dashed var(--edge); padding-top:14px}
   .out.empty{color:var(--ink-faint); font-size:13.5px}
   .result-text{border:1px solid var(--edge); border-radius:9px; background:var(--field); padding:10px 12px;
-    font-size:14px; word-break:break-word; min-height:20px}
+    font-size:14px; word-break:break-word; min-height:20px; white-space:pre-wrap}
   .stat{font-size:12.5px; color:var(--ink-faint); margin-top:8px; font-family:JetBrains Mono,ui-monospace,monospace}
   .msg{font-size:13px; margin-top:8px; min-height:1.2em}
   .msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
@@ -241,6 +241,27 @@
   .stamp .txt{font-size:11.5px; color:var(--ink-faint); font-family:JetBrains Mono,ui-monospace,monospace}
   .traced{font-size:15px}
   .traced b{color:var(--bad)}
+
+  /* ---- emoji carrier ---- */
+  .emopick{border:1px solid var(--edge); background:var(--paper-2); border-radius:9px; cursor:pointer;
+    font-size:19px; line-height:1; padding:6px 8px}
+  .emopick:hover{border-color:var(--uv-line)}
+  .emopick.on{border-color:var(--uv); background:var(--uv-soft)}
+  .emopick:focus-visible{outline:2px solid var(--uv); outline-offset:2px}
+  .bigglyph{font-size:52px; line-height:1.2; text-align:center; padding:10px;
+    border:1px solid var(--edge); border-radius:10px; background:var(--field); word-break:break-all}
+
+  /* ---- look-alike forge ---- */
+  .versus{display:grid; grid-template-columns:1fr; gap:9px}
+  .vrow{border:1px solid var(--edge); border-radius:9px; background:var(--field); padding:9px 11px}
+  .vrow .vlab{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint);
+    font-family:JetBrains Mono,ui-monospace,monospace; margin-bottom:3px}
+  .vrow .vval{font-size:19px; word-break:break-all}
+  .vrow.fake{border-color:color-mix(in srgb, var(--warn) 50%, transparent)}
+  .vrow.puny .vval{font-size:13px; font-family:JetBrains Mono,ui-monospace,monospace; color:var(--ok)}
+  .swaps{margin-top:9px; font-size:11.5px; color:var(--ink-faint);
+    font-family:JetBrains Mono,ui-monospace,monospace; line-height:1.8}
+  .swaps b{color:var(--warn); font-weight:600}
   .legend{display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:12px; font-size:11.5px; color:var(--ink-faint);
     font-family:JetBrains Mono,ui-monospace,monospace}
   .legend[hidden]{display:none}
@@ -251,6 +272,11 @@
   .legend .sw.zw{background:color-mix(in srgb, var(--warn) 30%, transparent); border-color:var(--warn)}
   .legend .sw.bidi{background:color-mix(in srgb, var(--bad) 30%, transparent); border-color:var(--bad)}
   .legend .sw.space{background:var(--paper); border-color:var(--edge)}
+  .chip.ws{background:var(--paper); color:var(--ink-faint); border-color:var(--ink-faint); border-style:dashed}
+  .legend .sw.ws{background:var(--paper); border-color:var(--ink-faint); border-style:dashed}
+  .homo{background:color-mix(in srgb, var(--warn) 20%, transparent); border-bottom:2px dotted var(--warn);
+    border-radius:3px 3px 0 0; padding:0 1px; cursor:help}
+  .legend .sw.homo{background:color-mix(in srgb, var(--warn) 30%, transparent); border-color:var(--warn); border-bottom-style:dotted}
 
   /* teach sections */
   .teach{margin-top:12px}
@@ -382,6 +408,7 @@
         <label><input type="radio" name="carrier" value="tags" checked> Unicode Tags</label>
         <label><input type="radio" name="carrier" value="vs"> Variation selectors</label>
         <label><input type="radio" name="carrier" value="zw"> Zero-width</label>
+        <label><input type="radio" name="carrier" value="snow"> Trailing whitespace</label>
       </div>
       <div class="carrier-note" id="carrierNote"></div>
       <div class="actions">
@@ -426,12 +453,15 @@
       <div class="actions">
         <button class="act" id="inspectBtn">Show hidden characters</button>
         <button class="act ghost mini" id="stripBtn">Copy cleaned text</button>
+        <button class="act ghost mini" id="foldBtn">Copy ASCII-folded text</button>
       </div>
       <div class="opts" style="margin-top:12px">
         <span style="color:var(--ink-faint)">Load an example:</span>
         <button class="act ghost mini" id="lureBtn">Tags spam lure</button>
         <button class="act ghost mini" id="zwBtn">Zero-width payload</button>
         <button class="act ghost mini" id="bidiBtn">Bidi (Trojan Source)</button>
+        <button class="act ghost mini" id="homoBtn">Look-alike domain</button>
+        <button class="act ghost mini" id="snowBtn">SNOW whitespace</button>
       </div>
       <div class="out" id="inspectOut">
         <div class="inspect" id="inspectRender" aria-live="polite">Nothing inspected yet.</div>
@@ -513,6 +543,37 @@
           <button class="act ghost" id="survClear">Clear</button>
         </div>
         <div class="out empty" id="survOut">The survival report appears here.</div>
+      </div>
+
+      <!-- EMOJI CARRIER -->
+      <div class="card" id="emoji-card">
+        <h3>Hide it behind one emoji</h3>
+        <div class="hint">Variation selectors attach to whatever character comes before them, so an entire payload can ride on a single emoji. What you paste is one glyph; what travels is the whole message. The emoji offered here are all single codepoints on purpose — one like ❤️ already ends in a variation selector of its own, which would corrupt the payload.</div>
+        <div class="field-block">
+          <label class="lab" for="emSecret">Secret</label>
+          <textarea id="emSecret">this whole sentence fits inside one emoji</textarea>
+        </div>
+        <div class="opts" id="emPicker"><span class="opts-lab">Host</span></div>
+        <div class="actions">
+          <button class="act" id="emBtn">Load the emoji</button>
+          <button class="act ghost" id="emClear">Clear</button>
+        </div>
+        <div class="out empty" id="emOut">Your loaded emoji appears here.</div>
+      </div>
+
+      <!-- LOOK-ALIKE FORGE -->
+      <div class="card" id="homo-card">
+        <h3>Look-alike forge</h3>
+        <div class="hint">A different family entirely: not hidden characters but visible impostors. Latin letters are swapped for characters from other scripts that render almost identically. Nothing is concealed here — the string simply lies about what it is. This is the homoglyph lineage behind IDN phishing, and the reason browsers show some domains in Punycode.</div>
+        <div class="field-block">
+          <label class="lab" for="hfIn">Text to imitate</label>
+          <input type="text" id="hfIn" value="paypal.com" spellcheck="false" autocapitalize="off" autocorrect="off">
+        </div>
+        <div class="actions">
+          <button class="act" id="hfBtn">Forge a look-alike</button>
+          <button class="act ghost" id="hfClear">Clear</button>
+        </div>
+        <div class="out empty" id="hfOut">The look-alike appears here.</div>
       </div>
 
       <!-- LEAK TRACER -->
@@ -603,7 +664,26 @@
 
   <!-- TEACHING: honest limits -->
   <section class="section">
-    <h2>Where this is weak</h2>
+    <h2>You are not the only one watching for this</h2>
+    <p>The Inspect panel above is a friendly version of checks that already ship in tools you probably use every day. Trojan Source is why most of them exist.</p>
+    <ul>
+      <li><b>VS Code — Unicode highlighting.</b> The editor flags invisible, ambiguous and non-basic-ASCII characters inline. It is on by default for ambiguous characters; the settings that govern it live under <code>editor.unicodeHighlight.*</code> (<code>invisibleCharacters</code>, <code>ambiguousCharacters</code>, <code>nonBasicASCII</code>). The closest productised sibling to this page’s detector.</li>
+      <li><b>GitHub — bidirectional-text warning.</b> Diffs and blobs containing bidi control characters get a banner, added directly in response to Trojan Source.</li>
+      <li><b>The Rust compiler.</b> A lint fires on bidi control codepoints inside string literals; other toolchains added equivalents. Boucher and Anderson’s 2021 Trojan Source paper (CVE-2021-42574 / 42694) is the common ancestor of all of these.</li>
+      <li><b>Your browser, on every address bar.</b> The Punycode display rules and Unicode’s UTS #39 confusables data are the defence against the look-alike forge above — which is why that panel shows you the <code>xn--</code> form the browser would fall back to.</li>
+      <li><b>Microsoft Defender for Office.</b> The ASCII-smuggling signature behind the chart further up this page.</li>
+    </ul>
+    <p>The pattern is worth noticing: every one of these defences is a <i>rendering</i> decision. None of them change the bytes. They make the invisible visible and let a human decide — which is the same move the Inspect panel makes.</p>
+
+    <h2 style="margin-top:30px">What this page deliberately does not do</h2>
+    <p>Everything here hides data in characters, which is why all of it can be detected by looking at characters. Three neighbouring fields do not have that weakness, and are worth knowing about precisely because this page cannot demonstrate them honestly:</p>
+    <ul>
+      <li><b>Stego in a model’s token choices.</b> Meteor (Kaptchuk et al.) and arithmetic-coding schemes hide bits in <i>which</i> word a language model picks, so the output is ordinary text with no anomalous codepoint to find. That is the real answer to the weakness listed below — and it needs a language model, so it cannot run in a single HTML file.</li>
+      <li><b>Watermarking generated text.</b> SynthID-Text and green-list schemes (Kirchenbauer et al.) run the idea backwards: instead of smuggling something into text, they bias generation so the output carries a statistical signature. The Leak tracer above is the crude, character-based cousin.</li>
+      <li><b>Other media entirely.</b> Least-significant-bit stego in images, and glyph-shape perturbation in fonts. Same goal, no Unicode involved.</li>
+    </ul>
+
+    <h2 style="margin-top:30px">Where this is weak</h2>
     <ul>
       <li><b>Hiding the content is strong; hiding its existence is not.</b> The AES-GCM layer protects what the message says even if the text is intercepted. But the <i>presence</i> of a payload is trivial to detect — the Inspect panel above does it in one pass, and so do published filter signatures.</li>
       <li><b>It does not survive everywhere.</b> Many platforms and editors normalize or strip tag characters on paste or send, so the ghost layer can silently vanish in transit.</li>
@@ -614,7 +694,7 @@
 
   <footer>
     <span>Ghost Ink — a steganography exhibit. Background: <a href="https://arstechnica.com/security/2026/09/once-popular-for-attacking-ai-ascii-smuggling-is-embraced-by-spammers/" target="_blank" rel="noopener noreferrer">Ars Technica</a> · <a href="https://github.com/systemslibrarian/Ghost-Ink" target="_blank" rel="noopener noreferrer">source</a></span>
-    <span class="mono">carriers: Tags · variation selectors · zero-width · cipher: AES-256-GCM · kdf: PBKDF2-SHA256</span>
+    <span class="mono">carriers: Tags · variation selectors · zero-width · whitespace · cipher: AES-256-GCM · kdf: PBKDF2-SHA256</span>
   </footer>
 </div>
 
@@ -661,6 +741,8 @@
     zw:    {label:"Zero-width",    note:"classic invisible format characters"},
     bidi:  {label:"Bidi control",  note:"reorders how text displays (Trojan Source)"},
     space: {label:"Unusual space", note:"whitespace that isn’t a normal space"},
+    ws:    {label:"Trailing whitespace", note:"the SNOW carrier — ordinary spaces and tabs, parked where nobody looks"},
+    homo:  {label:"Look-alike",    note:"a visible impostor — fold it to ASCII rather than deleting it"},
   };
   const CP_NAME = {
     0x200B:"ZWSP",0x200C:"ZWNJ",0x200D:"ZWJ",0x2060:"WORD JOINER",0xFEFF:"ZWNBSP/BOM",
@@ -669,6 +751,7 @@
     0x202A:"LRE",0x202B:"RLE",0x202C:"PDF",0x202D:"LRO",0x202E:"RLO",
     0x2066:"LRI",0x2067:"RLI",0x2068:"FSI",0x2069:"PDI",0x200E:"LRM",0x200F:"RLM",0x061C:"ALM",
     0x00A0:"NBSP",0x202F:"NNBSP",0x205F:"MMSP",0x3000:"IDEOGRAPHIC SP",0x2800:"BRAILLE BLANK",
+    0x0009:"TAB",0x0020:"SPACE",
   };
   function classify(cp){
     if (cp >= 0xE0000 && cp <= 0xE007F) return "tags";
@@ -676,6 +759,7 @@
     if (cp===0x200B||cp===0x200C||cp===0x200D||cp===0x2060||cp===0xFEFF||cp===0x00AD||cp===0x180E||(cp>=0x2061&&cp<=0x2064)) return "zw";
     if ((cp>=0x202A&&cp<=0x202E)||(cp>=0x2066&&cp<=0x2069)||cp===0x200E||cp===0x200F||cp===0x061C) return "bidi";
     if (cp===0x00A0||(cp>=0x2000&&cp<=0x200A)||cp===0x202F||cp===0x205F||cp===0x3000||cp===0x2800) return "space";
+    if (cp===0x0009) return "ws";
     return null;
   }
   function cpName(cp, cat){
@@ -684,6 +768,49 @@
     return CP_NAME[cp] || "?";
   }
   const U = cp => "U+" + cp.toString(16).toUpperCase().padStart(4,"0");
+
+  /* ---------- look-alikes (UTS #39 confusables, a working subset) ----------
+     A different family from everything above: these characters are not hidden at
+     all, they are *visible impostors*. Deleting them is the wrong repair — the
+     fix is to fold them back to the ASCII they imitate, which is what a browser
+     does when it decides whether to show a domain in Unicode or in Punycode. */
+  const CONFUSABLE = {};
+  (function(){
+    const rows = [
+      // Cyrillic
+      ["а","a"],["е","e"],["о","o"],["р","p"],["с","c"],["у","y"],["х","x"],["ѕ","s"],["і","i"],["ј","j"],
+      ["ԁ","d"],["һ","h"],["ӏ","l"],["ԛ","q"],["ԝ","w"],["ᴦ","r"],["в","B"],["м","M"],["т","T"],
+      ["А","A"],["В","B"],["Е","E"],["К","K"],["М","M"],["Н","H"],["О","O"],["Р","P"],["С","C"],
+      ["Т","T"],["У","Y"],["Х","X"],["Ѕ","S"],["І","I"],["Ј","J"],
+      // Greek
+      ["ο","o"],["ν","v"],["ρ","p"],["α","a"],["ι","i"],["κ","k"],["ϲ","c"],["ϳ","j"],["υ","u"],
+      ["Α","A"],["Β","B"],["Ε","E"],["Ζ","Z"],["Η","H"],["Ι","I"],["Κ","K"],["Μ","M"],["Ν","N"],
+      ["Ο","O"],["Ρ","P"],["Τ","T"],["Υ","Y"],["Χ","X"],
+      // Armenian / Cherokee / other single-script impostors
+      ["օ","o"],["ո","n"],["ա","w"],["ս","u"],["գ","q"],["Ꭰ","D"],["Ꮋ","H"],["Ꮮ","L"],["Ꮐ","G"],
+      // maths / letterlike / fullwidth
+      ["ℓ","l"],["ℯ","e"],["ℴ","o"],["ⅰ","i"],["ⅼ","l"],["ⅾ","d"],["Ι","I"],["ǃ","!"],["․",'.'],["⁄","/"],
+    ];
+    for (const [imp, real] of rows) CONFUSABLE[imp] = real;
+    for (let i = 0; i < 26; i++){                       // fullwidth Latin
+      CONFUSABLE[String.fromCodePoint(0xFF41 + i)] = String.fromCharCode(97 + i);
+      CONFUSABLE[String.fromCodePoint(0xFF21 + i)] = String.fromCharCode(65 + i);
+    }
+    for (let i = 0; i < 10; i++) CONFUSABLE[String.fromCodePoint(0xFF10 + i)] = String(i);
+  })();
+  // the "skeleton": what the string pretends to be
+  function skeleton(text){
+    let out = "";
+    for (const ch of text) out += (CONFUSABLE[ch] !== undefined ? CONFUSABLE[ch] : ch);
+    return out;
+  }
+  const SCRIPT_OF = cp =>
+    (cp >= 0x0400 && cp <= 0x04FF) ? "Cyrillic" :
+    (cp >= 0x0370 && cp <= 0x03FF) ? "Greek" :
+    (cp >= 0x0530 && cp <= 0x058F) ? "Armenian" :
+    (cp >= 0x13A0 && cp <= 0x13FF) ? "Cherokee" :
+    (cp >= 0xFF00 && cp <= 0xFFEF) ? "Fullwidth" :
+    (cp >= 0x2100 && cp <= 0x214F) ? "Letterlike" : "other";
 
   /* ---------- base64 over bytes ---------- */
   function bytesToB64(bytes){
@@ -813,6 +940,35 @@
         return out;
       },
       count(text){ let n = 0; for (const ch of text) if (ZW_ALPHA.indexOf(ch.codePointAt(0)) >= 0) n++; return n; }
+    },
+    /* SNOW — the 1990s ancestor, and the one carrier on this page that uses no
+       exotic Unicode at all: space is 0, tab is 1, eight per byte, parked in the
+       trailing whitespace where nobody looks. Deliberately listed last so the
+       Unicode carriers win detection; deliberately included because the detector
+       above, built entirely around unusual codepoints, cannot see it. */
+    snow: {
+      label: "Trailing whitespace", cat: "ws", appendOnly: true,
+      note: "Space is 0, tab is 1, eight characters per byte, hidden in the trailing whitespace. No exotic codepoints — which is exactly why a codepoint-based detector misses it.",
+      cost: n => n * 8,
+      encode(bytes){
+        let out = "";
+        for (const b of bytes) for (let sh = 7; sh >= 0; sh--) out += ((b >> sh) & 1) ? "\t" : " ";
+        return out;
+      },
+      decode(text){
+        const m = /[ \t]+$/.exec(text);
+        if (!m) return null;
+        const run = m[0], n = Math.floor(run.length / 8);
+        if (!n) return null;
+        const out = new Uint8Array(n);
+        for (let i = 0; i < n; i++){
+          let b = 0;
+          for (let j = 0; j < 8; j++) b = (b << 1) | (run[i*8 + j] === "\t" ? 1 : 0);
+          out[i] = b;
+        }
+        return out;
+      },
+      count(text){ const m = /[ \t]+$/.exec(text); return m ? m[0].length : 0; }
     }
   };
 
@@ -939,9 +1095,10 @@
     const carrierKey = document.querySelector('input[name=carrier]:checked').value;
     const C = CARRIERS[carrierKey];
     const payload = C.encode(bytes);
-    lastStego = weave(cover, payload, mode);
+    const place = C.appendOnly ? "append" : mode;   // scattered spaces would be plainly visible
+    lastStego = weave(cover, payload, place);
     lastCover = cover;
-    lastMode = mode;
+    lastMode = place;
     lastCarrier = carrierKey;
     lastSteps = {
       secret, encrypted: $("encChk").checked, container: bytes, payload,
@@ -963,7 +1120,8 @@
       .map(k => `${k === picked ? "<b>" : ""}${CARRIERS[k].label} ${CARRIERS[k].cost(bytes)}${k === picked ? "</b>" : ""}`)
       .join(" · ");
     $("carrierNote").innerHTML =
-      `${bytes}-byte payload → invisible characters: ${costs}<br><em>${escapeHtml(CARRIERS[picked].note)}</em>`;
+      `${bytes}-byte payload → hidden characters: ${costs}<br><em>${escapeHtml(CARRIERS[picked].note)}</em>` +
+      (CARRIERS[picked].appendOnly ? `<br><em>Always appended — scattering whitespace through a sentence would be plainly visible.</em>` : "");
   }
   $("secret").addEventListener("input", refreshCarrierNote);
   $("encChk").addEventListener("change", refreshCarrierNote);
@@ -1122,19 +1280,33 @@
     const text = $("inspectIn").value;
     const render = $("inspectRender"), legend = $("inspectLegend"), stat = $("inspectStat");
     render.innerHTML = ""; legend.innerHTML = ""; legend.hidden = true;
-    let total = 0, tagsAscii = "";
+    let total = 0, tagsAscii = "", homo = 0;
     const counts = {};
-    for (const ch of text){
+    // A run of trailing whitespace is the SNOW carrier. No single codepoint here
+    // is unusual, so this has to be spotted positionally rather than by lookup.
+    const tail = /[ \t]{4,}$/.exec(text);
+    const tailFrom = tail ? tail.index : -1;
+    const chars = [...text];
+    let idx = 0;
+    for (const ch of chars){
+      const at = idx; idx += ch.length;
       const cp = ch.codePointAt(0);
-      const cat = classify(cp);
+      const inTail = tailFrom >= 0 && at >= tailFrom;
+      const cat = inTail ? "ws" : classify(cp);
       if (cat){
         total++; counts[cat] = (counts[cat]||0)+1;
         if (cat === "tags"){ const b = cp - TAG_BASE; if (b>=0x20&&b<=0x7e) tagsAscii += String.fromCharCode(b); }
         const chip = document.createElement("span");
         chip.className = "chip " + cat;
-        chip.textContent = `${cpName(cp, cat)} ${U(cp)}`;
+        chip.textContent = inTail ? (cp === 0x09 ? "TAB" : "SP") : `${cpName(cp, cat)} ${U(cp)}`;
         chip.title = INV[cat].label + " — " + INV[cat].note;
         render.appendChild(chip);
+      } else if (CONFUSABLE[ch] !== undefined){
+        total++; homo++; counts.homo = (counts.homo||0)+1;
+        const span = document.createElement("span");
+        span.className = "homo"; span.textContent = ch;
+        span.title = `${SCRIPT_OF(cp)} ${U(cp)} imitating “${CONFUSABLE[ch]}”`;
+        render.appendChild(span);
       } else {
         render.appendChild(document.createTextNode(ch));
       }
@@ -1153,6 +1325,12 @@
 
     const summary = Object.keys(INV).filter(c => counts[c]).map(c => `${counts[c]} ${INV[c].label.toLowerCase()}`).join(" · ");
     const head = `${total} hidden/deceptive character${total>1?"s":""} — ${summary}`;
+    if (homo){
+      const scripts = [...new Set([...text].filter(c => CONFUSABLE[c] !== undefined).map(c => SCRIPT_OF(c.codePointAt(0))))];
+      stat.innerHTML = `${escapeHtml(head)}${homo === total ? "" : ""} · ${homo} look-alike character${homo>1?"s":""} ` +
+        `(${escapeHtml(scripts.join(", "))}) · it is pretending to be <span class="k">${escapeHtml(skeleton(text).trim())}</span>`;
+      return;
+    }
     if (counts.tags){
       try{
         const r = await unpack(b64ToBytes(tagsAscii), null);
@@ -1167,6 +1345,7 @@
     stat.innerHTML = `${escapeHtml(head)} · ${escapeHtml(catAdvice(counts))}`;
   }
   function catAdvice(counts){
+    if (counts.ws)    return "an unbroken run of trailing spaces and tabs — the SNOW carrier, and the one this detector can only catch by position";
     if (counts.bidi)  return "bidi controls can reorder how text displays vs. how it’s stored — the Trojan Source trick";
     if (counts.vs)    return "hidden bytes can ride inside variation selectors — the “emoji smuggling” carrier";
     if (counts.zw)    return "zero-width characters are a classic way to hide data or split up words";
@@ -1200,6 +1379,14 @@
   // Bidi / Trojan Source: an override makes the display order lie about the stored order
   $("bidiBtn").addEventListener("click", () => {
     loadExample("Attachment: resume_\u202Efdp.exe\u202C — the name displays as a PDF, but the stored bytes say .exe");
+  });
+  // Look-alikes: Cyrillic characters standing in for Latin ones in a domain
+  $("homoBtn").addEventListener("click", () => {
+    loadExample("Sign in at \u0430pple-\u0455upport.com to restore your \u0430ccount before it is l\u043Ecked.");
+  });
+  // SNOW: no unusual codepoint anywhere — the payload is in the trailing whitespace
+  $("snowBtn").addEventListener("click", () => {
+    loadExample("Nothing unusual about this line at all." + CARRIERS.snow.encode(packPlain("snow")));
   });
 
 
@@ -1376,6 +1563,7 @@
     {key:"zw",    label:"Zero-width",          count: t => CARRIERS.zw.count(t)},
     {key:"bidi",  label:"Bidi marks",          count: t => [...t].filter(c => c === LRM || c === RLM).length},
     {key:"space", label:"Non-breaking spaces", count: t => [...t].filter(c => c === NBSP).length},
+    {key:"snow",  label:"Trailing whitespace",  count: t => CARRIERS.snow.count(t)},
   ];
   let probe = null;
   function newProbe(){
@@ -1386,7 +1574,8 @@
       + CARRIERS.vs.encode(new Uint8Array([0xDE,0xAD,0xBE,0xEF,0x10,0x20,0x30,0x40]))
       + CARRIERS.zw.encode(new Uint8Array([0x47,0x49]))
       + LRM + RLM
-      + NBSP + NBSP;
+      + NBSP + NBSP
+      + CARRIERS.snow.encode(new Uint8Array([0x53, 0x4E]));  // last: the trailing run has to be trailing
     const sent = {};
     for (const c of SURV_CATS) sent[c.key] = c.count(text);
     probe = {text, cover, tok, sent};
@@ -1488,6 +1677,113 @@
     $("wmDoc").focus();
   });
 
+
+  /* =========================================================
+     EMOJI CARRIER
+     Paul Butler's framing of the variation-selector trick: the selectors bind to
+     the character in front of them, so one emoji can carry the lot. Every host
+     below is a single codepoint — an emoji that already ends in U+FE0F would
+     contribute a stray 0x0F to the payload and break it.
+  ========================================================= */
+  const EMOJI_HOSTS = ["\u{1F47B}","\u{1F3AF}","\u{1F512}","\u{1F4CE}","\u{1F9CA}","\u{1F41F}","\u{1F680}","\u{1F344}"];
+  let emHost = EMOJI_HOSTS[0], emLoaded = "";
+  (function buildPicker(){
+    const host = $("emPicker");
+    for (const e of EMOJI_HOSTS){
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "emopick" + (e === emHost ? " on" : "");
+      b.textContent = e; b.setAttribute("aria-label", "Use " + e);
+      b.addEventListener("click", () => {
+        emHost = e;
+        for (const el of host.querySelectorAll(".emopick")) el.classList.toggle("on", el.textContent === e);
+      });
+      host.appendChild(b);
+    }
+  })();
+  $("emBtn").addEventListener("click", () => {
+    const secret = $("emSecret").value, out = $("emOut");
+    if (!secret){ setOut(out, "Add something to hide first.", "bad"); return; }
+    emLoaded = emHost + CARRIERS.vs.encode(packPlain(secret));
+    out.className = "out"; out.innerHTML = "";
+    const glyph = document.createElement("div"); glyph.className = "bigglyph"; glyph.textContent = emLoaded;
+    const stat = document.createElement("div"); stat.className = "stat";
+    stat.textContent = `one visible character · ${[...emLoaded].length - 1} invisible selectors riding on it · ` +
+      `${[...emLoaded].length} codepoints in total, and every one of them travels when you copy it`;
+    const b = document.createElement("button"); b.className = "act mini"; b.textContent = "Copy the emoji";
+    b.style.marginTop = "10px";
+    b.addEventListener("click", () => copy(emLoaded, b));
+    const hint = document.createElement("div"); hint.className = "stat";
+    hint.textContent = "Paste it into “Find a message” above — that panel is not told which carrier was used and will work it out.";
+    out.append(glyph, stat, b, hint);
+  });
+  $("emClear").addEventListener("click", () => {
+    $("emSecret").value = ""; emLoaded = "";
+    $("emOut").className = "out empty"; $("emOut").textContent = "Your loaded emoji appears here.";
+    $("emSecret").focus();
+  });
+
+  /* =========================================================
+     LOOK-ALIKE FORGE
+     The inverse of the confusables table: pick, for each ASCII character, an
+     impostor from another script. Cyrillic first, because that is the pairing
+     the real IDN phishing cases lean on.
+  ========================================================= */
+  const IMPOSTOR = {};
+  (function(){
+    const preferred = ["Cyrillic","Greek","Armenian","Cherokee","Fullwidth","Letterlike","other"];
+    for (const [imp, real] of Object.entries(CONFUSABLE)){
+      const rank = preferred.indexOf(SCRIPT_OF(imp.codePointAt(0)));
+      const cur = IMPOSTOR[real];
+      if (!cur || rank < cur.rank) IMPOSTOR[real] = {ch: imp, rank};
+    }
+  })();
+  $("hfBtn").addEventListener("click", () => {
+    const src = $("hfIn").value, out = $("hfOut");
+    if (!src.trim()){ setOut(out, "Type something to imitate.", "bad"); return; }
+    let fake = "", swaps = [];
+    for (const ch of src){
+      const imp = IMPOSTOR[ch];
+      if (imp && swaps.length < 3){ fake += imp.ch; swaps.push([ch, imp.ch]); }
+      else fake += ch;
+    }
+    if (!swaps.length){ setOut(out, "No look-alike is available for any character in that string.", "bad"); return; }
+
+    out.className = "out"; out.innerHTML = "";
+    const versus = document.createElement("div"); versus.className = "versus";
+    const row = (cls, lab, val) => {
+      const d = document.createElement("div"); d.className = "vrow " + cls;
+      const l = document.createElement("div"); l.className = "vlab"; l.textContent = lab;
+      const v = document.createElement("div"); v.className = "vval"; v.textContent = val;
+      d.append(l, v); return d;
+    };
+    versus.append(row("", "The real thing", src), row("fake", "The look-alike", fake));
+
+    // What a browser does about it: IDNA turns the impostor back into visible ASCII.
+    let puny = null;
+    try{
+      const host = fake.trim().split(/[\/\s]/)[0];
+      if (/\./.test(host)) puny = new URL("https://" + host).hostname;
+    }catch(e){ puny = null; }
+    if (puny && puny !== fake.trim().split(/[\/\s]/)[0]) versus.appendChild(row("puny", "What a browser shows instead (Punycode)", puny));
+
+    const list = document.createElement("div"); list.className = "swaps";
+    list.innerHTML = swaps.map(([a, b]) =>
+      `<b>${escapeHtml(b)}</b> ${U(b.codePointAt(0))} ${escapeHtml(SCRIPT_OF(b.codePointAt(0)))} standing in for “${escapeHtml(a)}”`).join("<br>");
+    const stat = document.createElement("div"); stat.className = "stat";
+    stat.textContent = `Different strings — ${[...src].length} and ${[...fake].length} codepoints, ` +
+      `sharing no bytes at ${swaps.length} position${swaps.length>1?"s":""} — but the same shape on screen. ` +
+      `Paste the look-alike into Inspect & clean: it recovers the ASCII skeleton.`;
+    const b = document.createElement("button"); b.className = "act mini"; b.textContent = "Copy the look-alike";
+    b.style.marginTop = "10px";
+    b.addEventListener("click", () => copy(fake, b));
+    out.append(versus, list, stat, b);
+  });
+  $("hfClear").addEventListener("click", () => {
+    $("hfIn").value = "";
+    $("hfOut").className = "out empty"; $("hfOut").textContent = "The look-alike appears here.";
+    $("hfIn").focus();
+  });
+
   /* =========================================================
      "IN THE WILD" chart — Microsoft signature hits, Feb 2026
      Source: Ars Technica / Microsoft. Illustrative daily values (millions).
@@ -1534,15 +1830,23 @@
     el("text",{x:ox+2,y:y(1.32)-8,"text-anchor":"middle",class:"annot"},"onset");
     host.appendChild(svg);
   })();
-  $("stripBtn").addEventListener("click", () => {
+  function cleaned(text){
     let clean = "";
-    for (const ch of $("inspectIn").value){
+    for (const ch of text){
       const cat = classify(ch.codePointAt(0));
-      if (cat === "space") clean += " ";   // normalise odd spaces to a plain space
-      else if (cat) continue;              // drop tags / var-selectors / zero-width / bidi
+      if (cat === "space" || cat === "ws") clean += " ";  // normalise odd spaces to a plain space
+      else if (cat) continue;                             // drop tags / var-selectors / zero-width / bidi
       else clean += ch;
     }
-    copy(clean, $("stripBtn"), "Copied cleaned text");
+    return clean.replace(/[ \t]+$/, "");                  // and take the SNOW run off the end
+  }
+  $("stripBtn").addEventListener("click", () => {
+    copy(cleaned($("inspectIn").value), $("stripBtn"), "Copied cleaned text");
+  });
+  // Impostors are visible characters, so deleting them mangles the text. The
+  // repair is to fold each one back to the ASCII it was imitating.
+  $("foldBtn").addEventListener("click", () => {
+    copy(skeleton(cleaned($("inspectIn").value)), $("foldBtn"), "Copied ASCII-folded text");
   });
 
   /* =========================================================
@@ -1557,6 +1861,8 @@
     mevInj: $("mevInj").value,
     wmDoc: $("wmDoc").value,
     wmNames: $("wmNames").value,
+    emSecret: $("emSecret").value,
+    hfIn: $("hfIn").value,
     hideOut: {cls: $("hideOut").className, html: $("hideOut").innerHTML},
     findOut: {cls: $("findOut").className, html: $("findOut").innerHTML},
   };
@@ -1598,6 +1904,10 @@
     $("wmDoc").value = DEF.wmDoc; $("wmNames").value = DEF.wmNames; $("wmLeak").value = "";
     $("wmOut").className = "out empty"; $("wmOut").textContent = "Stamped copies appear here, one per recipient.";
     $("wmTraceOut").className = "out empty"; $("wmTraceOut").textContent = "The tracer names a recipient here.";
+    $("emSecret").value = DEF.emSecret; emLoaded = "";
+    $("emOut").className = "out empty"; $("emOut").textContent = "Your loaded emoji appears here.";
+    $("hfIn").value = DEF.hfIn;
+    $("hfOut").className = "out empty"; $("hfOut").textContent = "The look-alike appears here.";
     window.scrollTo({top:0, behavior:"smooth"});
   });
 
