@@ -39,6 +39,25 @@ spammers,"](https://arstechnica.com/security/2026/09/once-popular-for-attacking-
 *Ars Technica*, Sept. 4, 2026 (based on Microsoft research). This project is an
 independent educational demo and is not affiliated with either.
 
+## Play with it
+
+Four panels turn the technique into something you do rather than read about:
+
+- **Spot the Ghost** — five ordinary-looking messages, some carrying a payload.
+  Mark your guesses and check. You cannot win by looking harder, which is the point.
+- **What the model reads** — the prompt-injection case, shown from both sides: the
+  string the human reviews next to the same string as a language model receives it,
+  with the smuggled instruction lit up. (This panel maps the instruction *straight*
+  into the Tags block — no container, no Base64 — because that is what a real
+  injection does: it wants the model to read the text, not to decode it.)
+- **Does it survive the trip?** — the "it doesn't survive everywhere" limitation,
+  made measurable. The page emits a probe carrying a known count of every category;
+  you route it through Slack, Gmail, Notes, your CMS, whatever, paste it back, and
+  get a per-category survival report.
+- **Leak tracer** — one document, several recipients, a different invisible
+  watermark scattered through each copy. Paste a leaked copy back and it names the
+  recipient. A real deployed use of the technique, not a hypothetical.
+
 ## How it works
 
 ```
@@ -47,6 +66,9 @@ secret → UTF-8 bytes → [optional AES-256-GCM] → Base64
        → weave into cover text (append or scatter)
 ```
 
+The **Show your work** button in the Hide panel walks that pipeline step by step
+using the actual values that produced the result on screen.
+
 - **Encryption** (optional): AES-256-GCM, key from your passphrase via
   PBKDF2-SHA256 (210,000 iterations). Runs in the browser with WebCrypto —
   no bytes leave the page.
@@ -54,6 +76,18 @@ secret → UTF-8 bytes → [optional AES-256-GCM] → Base64
   GCM), then either the UTF-8 message or `salt(16) · iv(12) · ciphertext`.
 - **Placement doesn't matter**: a reader collects the tag characters in order
   and shifts them back down, so appended and scattered payloads decode the same.
+
+### Three carriers, one container
+
+The container format and the crypto are carrier-independent — only the last mile
+changes, and the Hide panel lets you pick it. The Find panel is not told which was
+used: it tries each and accepts the first that yields a valid container.
+
+| Carrier | Block | Cost per byte | Notes |
+| --- | --- | --- | --- |
+| **Unicode Tags** | U+E0000–E007F | 1.33 chars | Mirrors ASCII. The ASCII-smuggling carrier. |
+| **Variation selectors** | U+FE00–FE0F, U+E0100–E01EF | 1 char | Exactly 256 slots, so one selector carries one whole byte. The "emoji smuggling" carrier. |
+| **Zero-width** | ZWSP / ZWNJ / ZWJ / word joiner | 4 chars | Two bits per character. Bulky, but the most widely supported. |
 
 ## The detector catches more than its own trick
 
@@ -69,7 +103,8 @@ has to watch, colour-coded by category, and strips them on request:
 - **Unusual spaces** (NBSP and friends) that stand in for ordinary spaces.
 
 Built-in examples load a Tags spam lure, a zero-width payload, and a bidi
-(Trojan Source) case so you can see each light up.
+(Trojan Source) case so you can see each light up, and the panel X-rays as you
+type rather than waiting for a button press.
 
 ## Honest limitations
 
@@ -120,6 +155,7 @@ capacitor.config.json         native app identity for Capacitor (iOS/Android)
 package.json                  test + build + Capacitor scripts
 MOBILE.md                     install-as-PWA and native App Store / Play Store guide
 test/roundtrip.mjs            independent decoder that checks the four invariants
+test/carriers.mjs             exercises the page's own three carriers as shipped
 .github/workflows/pages.yml   run the test, then deploy to GitHub Pages on push to main
 ```
 
@@ -136,8 +172,17 @@ Invariants are checked by an independent decoder (it does not import the page's
 own encoder):
 
 ```
-node test/roundtrip.mjs
+npm test
 ```
+
+Two suites:
+
+- `test/roundtrip.mjs` — a deliberately independent re-implementation of the
+  decoder, checking the four invariants against the Tags wire format.
+- `test/carriers.mjs` — slices the page's *own* pure codec section out of
+  `index.html` and exercises all three carriers as shipped: byte round trips,
+  advertised cost vs. actual output, survival through both weave modes, encrypted
+  payloads, carrier auto-detection, and the variation-selector block boundary.
 
 ## License
 

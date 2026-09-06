@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - run: node test/roundtrip.mjs
+      - run: npm test
   deploy:
     needs: test
     runs-on: ubuntu-latest

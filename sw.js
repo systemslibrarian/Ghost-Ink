@@ -1,7 +1,7 @@
 /* Ghost Ink service worker — offline support for the installable app.
    Everything is same-origin and static; this just makes the exhibit work
    with no network. Bump CACHE when the asset list or index.html changes. */
-const CACHE = "ghost-ink-v1";
+const CACHE = "ghost-ink-v2";
 const ASSETS = [
   "./",
   "./index.html",
