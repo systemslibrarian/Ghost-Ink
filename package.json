@@ -1,0 +1,22 @@
+{
+  "name": "ghost-ink",
+  "version": "1.0.0",
+  "description": "Ghost Ink — an educational ASCII-smuggling exhibit. Installable web app (PWA) plus optional native iOS/Android shells via Capacitor.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/roundtrip.mjs",
+    "build": "node build.mjs",
+    "cap:sync": "npm run build && cap sync",
+    "cap:ios": "npm run build && cap sync ios && cap open ios",
+    "cap:android": "npm run build && cap sync android && cap open android"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/ios": "^6.1.0"
+  }
+}

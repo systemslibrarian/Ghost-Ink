@@ -1,7 +1,8 @@
 # Ghost Ink
 
 Hide a message in the invisible Unicode **Tags** block (U+E0000–U+E007F), then
-detect and strip it. A single self-contained HTML page — no build step, no backend.
+detect and strip it. The core is one self-contained HTML page — no build step,
+no backend — and it installs as an app (PWA) on desktop, Android, and iPhone.
 
 **[Live demo](https://systemslibrarian.github.io/ghost-ink/)**
 
@@ -54,6 +55,22 @@ secret → UTF-8 bytes → [optional AES-256-GCM] → Base64
 - **Placement doesn't matter**: a reader collects the tag characters in order
   and shifts them back down, so appended and scattered payloads decode the same.
 
+## The detector catches more than its own trick
+
+The **Inspect & clean** panel isn't limited to Ghost Ink's Tags-block carrier.
+It X-rays text for the whole family of hidden or deceptive characters a defender
+has to watch, colour-coded by category, and strips them on request:
+
+- **Tags block** (U+E0000–U+E007F) — the ASCII-smuggling carrier, decoded as a
+  possible Ghost Ink payload.
+- **Variation selectors** (U+FE00–FE0F, U+E0100–E01EF) — the "emoji smuggling" carrier.
+- **Zero-width & format** characters (ZWSP, ZWNJ, ZWJ, word joiner, BOM, soft hyphen…).
+- **Bidirectional controls** (RLO/LRO/…) — the Trojan Source display-reordering trick.
+- **Unusual spaces** (NBSP and friends) that stand in for ordinary spaces.
+
+Built-in examples load a Tags spam lure, a zero-width payload, and a bidi
+(Trojan Source) case so you can see each light up.
+
 ## Honest limitations
 
 - **Hiding the content is strong; hiding its existence is not.** The AES-GCM
@@ -68,7 +85,7 @@ secret → UTF-8 bytes → [optional AES-256-GCM] → Base64
 
 ## Run it
 
-It's one static file. Open `index.html` in a browser, or serve the folder:
+Open `index.html` in a browser, or serve the folder:
 
 ```
 python3 -m http.server
@@ -76,10 +93,32 @@ python3 -m http.server
 
 Deployed to GitHub Pages from `main` via the included workflow.
 
+## Install it as an app
+
+Served over HTTPS (as on GitHub Pages), Ghost Ink is an installable **PWA** — it
+works offline and gets its own home-screen icon. No accounts, no fees.
+
+- **Android (Chrome):** tap the in-page **⬇ Install app** button, or Chrome's
+  "Install app" menu item.
+- **iPhone / iPad (Safari):** **Share → Add to Home Screen** (the in-page button
+  shows these steps).
+
+For actual **App Store / Play Store** listings, the repo is scaffolded for
+[Capacitor](https://capacitorjs.com/) — see **[MOBILE.md](MOBILE.md)** for the
+full build-and-submit walkthrough (this needs Xcode / Android Studio and the
+respective developer accounts).
+
 ## Project layout
 
 ```
-index.html                    the entire app (markup, styles, logic — no build step)
+index.html                    the entire web app (markup, styles, logic — no build step)
+manifest.webmanifest          PWA manifest (name, icons, standalone display)
+sw.js                         service worker — offline support for the installed app
+icons/                        generated app icons (PNG + SVG, incl. maskable + apple-touch)
+build.mjs                     assembles dist/ for native shells (not needed for the web app)
+capacitor.config.json         native app identity for Capacitor (iOS/Android)
+package.json                  test + build + Capacitor scripts
+MOBILE.md                     install-as-PWA and native App Store / Play Store guide
 test/roundtrip.mjs            independent decoder that checks the four invariants
 .github/workflows/pages.yml   run the test, then deploy to GitHub Pages on push to main
 ```

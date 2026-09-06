@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ghost Ink — invisible Unicode-tag messages</title>
+<meta name="description" content="Hide a message in the invisible Unicode Tags block, then detect and strip it — an educational ASCII-smuggling exhibit.">
+<!-- Installable app (PWA) -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1018" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ghost Ink">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -21,6 +32,7 @@
     --uv-line:#c9a9ff;
     --ok:#1f7a4d;
     --bad:#b23b3b;
+    --warn:#a86a12;
     --field:#ffffff;
     --shadow:0 1px 0 rgba(0,0,0,.04), 0 10px 30px -18px rgba(20,24,32,.35);
     --glow:none;
@@ -38,6 +50,7 @@
       --uv-line:#5a3ba0;
       --ok:#57d998;
       --bad:#ff8a8a;
+      --warn:#f0b74a;
       --field:#0f1524;
       --shadow:0 1px 0 rgba(255,255,255,.02), 0 18px 40px -22px rgba(0,0,0,.8);
       --glow:0 0 22px -2px rgba(185,139,255,.55);
@@ -47,7 +60,7 @@
     --paper:#0c1018; --paper-2:#121826; --edge:#22293a;
     --ink:#e8ecf5; --ink-soft:#a7afc2; --ink-faint:#6c7488;
     --uv:#b98bff; --uv-soft:#241638; --uv-line:#5a3ba0;
-    --ok:#57d998; --bad:#ff8a8a; --field:#0f1524;
+    --ok:#57d998; --bad:#ff8a8a; --warn:#f0b74a; --field:#0f1524;
     --shadow:0 1px 0 rgba(255,255,255,.02), 0 18px 40px -22px rgba(0,0,0,.8);
     --glow:0 0 22px -2px rgba(185,139,255,.55);
   }
@@ -60,6 +73,15 @@
     line-height:1.55; -webkit-font-smoothing:antialiased;
   }
   .wrap{max-width:940px; margin:0 auto; padding:clamp(20px,4vw,44px) clamp(16px,4vw,28px) 80px}
+  /* respect notches / home indicator when installed on iPhone/iPad */
+  @supports (padding: max(0px)){
+    .wrap{
+      padding-top:max(clamp(20px,4vw,44px), env(safe-area-inset-top));
+      padding-left:max(clamp(16px,4vw,28px), env(safe-area-inset-left));
+      padding-right:max(clamp(16px,4vw,28px), env(safe-area-inset-right));
+      padding-bottom:max(80px, env(safe-area-inset-bottom));
+    }
+  }
   a{color:var(--uv)}
   h1,h2,h3{font-family:Spectral,Georgia,serif; font-weight:600; line-height:1.15; margin:0}
   p{margin:0 0 1em}
@@ -71,9 +93,22 @@
   .brand h1{font-size:clamp(26px,4.4vw,38px); letter-spacing:.2px}
   .subtitle{font-family:JetBrains Mono,ui-monospace,monospace; font-size:12.5px;
     color:var(--ink-faint); margin-top:5px}
-  .controls{display:flex; gap:8px; flex-wrap:wrap}
+  .controls{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
   .iconbtn{border:1px solid var(--edge); background:var(--paper-2); color:var(--ink-soft);
     border-radius:999px; width:38px; height:38px; cursor:pointer; font-size:15px}
+  .pillbtn{border:1px solid var(--edge); background:var(--paper-2); color:var(--ink-soft);
+    border-radius:999px; height:38px; padding:0 15px; cursor:pointer; font:inherit; font-size:13.5px;
+    font-weight:500; display:inline-flex; align-items:center; gap:7px; white-space:nowrap}
+  .pillbtn:hover{border-color:var(--uv-line); color:var(--ink)}
+  .pillbtn.accent{background:var(--uv-soft); border-color:var(--uv-line); color:var(--uv); font-weight:600}
+  .pillbtn[hidden]{display:none}
+  .pillbtn:focus-visible, .iconbtn:focus-visible{outline:2px solid var(--uv); outline-offset:2px}
+  .ioshint{margin:-18px 0 26px; border:1px solid var(--uv-line); background:var(--uv-soft); color:var(--ink);
+    border-radius:10px; padding:11px 14px; font-size:13.5px; display:flex; gap:12px; align-items:flex-start}
+  .ioshint[hidden]{display:none}
+  .ioshint b{color:var(--uv)}
+  .ioshint button{margin-left:auto; border:0; background:transparent; color:var(--ink-faint);
+    cursor:pointer; font-size:17px; line-height:1; padding:0 2px}
 
   .lede{font-family:Spectral,Georgia,serif; font-size:clamp(18px,2.6vw,22px); color:var(--ink-soft);
     max-width:60ch; margin:0 0 34px}
@@ -99,6 +134,13 @@
   button.act:focus-visible, .iconbtn:focus-visible, input:focus-visible, textarea:focus-visible{
     outline:2px solid var(--uv); outline-offset:2px}
   button:disabled{opacity:.45; cursor:not-allowed}
+  .pass-row{display:flex; gap:14px; align-items:center; margin-top:6px; font-size:12px; flex-wrap:wrap}
+  .linkbtn{border:0; background:none; color:var(--uv); cursor:pointer; font:inherit; font-size:12px;
+    padding:0; text-decoration:underline; text-underline-offset:2px}
+  .linkbtn:focus-visible{outline:2px solid var(--uv); outline-offset:2px; border-radius:3px}
+  .pass-strength{color:var(--ink-faint); margin-left:auto; font-family:JetBrains Mono,ui-monospace,monospace; font-size:11px}
+  .pass-strength b{font-weight:600}
+  .pass-strength.weak b{color:var(--bad)} .pass-strength.ok b{color:var(--warn)} .pass-strength.strong b{color:var(--ok)}
 
   /* ---- panels ---- */
   .grid{display:grid; gap:18px; grid-template-columns:1fr 1fr; margin-top:34px}
@@ -130,6 +172,22 @@
   .chip{display:inline-block; font-family:JetBrains Mono,ui-monospace,monospace; font-size:11px;
     background:var(--uv-soft); color:var(--uv); border:1px solid var(--uv-line); border-radius:5px;
     padding:1px 4px; margin:0 1px; vertical-align:baseline; transform:translateY(-1px)}
+  /* per-category colours in the inspector */
+  .chip.tags{background:var(--uv-soft); color:var(--uv); border-color:var(--uv-line)}
+  .chip.vs{background:color-mix(in srgb, var(--ok) 16%, transparent); color:var(--ok); border-color:color-mix(in srgb, var(--ok) 55%, transparent)}
+  .chip.zw{background:color-mix(in srgb, var(--warn) 16%, transparent); color:var(--warn); border-color:color-mix(in srgb, var(--warn) 55%, transparent)}
+  .chip.bidi{background:color-mix(in srgb, var(--bad) 15%, transparent); color:var(--bad); border-color:color-mix(in srgb, var(--bad) 55%, transparent)}
+  .chip.space{background:var(--paper); color:var(--ink-faint); border-color:var(--edge)}
+  .legend{display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:12px; font-size:11.5px; color:var(--ink-faint);
+    font-family:JetBrains Mono,ui-monospace,monospace}
+  .legend[hidden]{display:none}
+  .legend .key{display:inline-flex; align-items:center; gap:6px}
+  .legend .sw{width:11px; height:11px; border-radius:3px; border:1px solid}
+  .legend .sw.tags{background:var(--uv-soft); border-color:var(--uv-line)}
+  .legend .sw.vs{background:color-mix(in srgb, var(--ok) 30%, transparent); border-color:var(--ok)}
+  .legend .sw.zw{background:color-mix(in srgb, var(--warn) 30%, transparent); border-color:var(--warn)}
+  .legend .sw.bidi{background:color-mix(in srgb, var(--bad) 30%, transparent); border-color:var(--bad)}
+  .legend .sw.space{background:var(--paper); border-color:var(--edge)}
 
   /* teach sections */
   .teach{margin-top:12px}
@@ -202,9 +260,15 @@
       </div>
     </div>
     <div class="controls">
-      <button class="iconbtn" id="reset" title="Reset the lab to its starting state" aria-label="Reset all fields to defaults">↺</button>
+      <button class="pillbtn accent" id="install" hidden title="Install Ghost Ink as an app" aria-label="Install Ghost Ink as an app">⬇ Install app</button>
+      <button class="pillbtn" id="reset" title="Reset the lab to its starting state" aria-label="Reset all fields to defaults">↺ Reset</button>
       <button class="iconbtn" id="theme" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
     </div>
+  </div>
+
+  <div class="ioshint" id="iosHint" hidden>
+    <span>To install on iPhone or iPad: tap the <b>Share</b> button, then <b>Add to Home&nbsp;Screen</b>.</span>
+    <button id="iosHintClose" aria-label="Dismiss">×</button>
   </div>
 
   <p class="lede">A block of Unicode called Tags encodes letters that computers read but people can’t see. This lab hides a message in that invisible layer — and shows you how to catch it.</p>
@@ -239,7 +303,12 @@
       </div>
       <div class="field-block" id="encPassWrap" style="display:none">
         <label class="lab" for="encPass">Passphrase</label>
-        <input type="password" id="encPass" placeholder="shared out of band">
+        <input type="password" id="encPass" placeholder="shared out of band" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="pass-row">
+          <button type="button" class="linkbtn" id="encPassShow">Show</button>
+          <button type="button" class="linkbtn" id="encPassGen">Suggest a strong one</button>
+          <span class="pass-strength" id="encPassMeter"></span>
+        </div>
       </div>
       <div class="opts">
         <label><input type="radio" name="place" value="append" checked> Append at end</label>
@@ -261,7 +330,10 @@
       </div>
       <div class="field-block" id="decPassWrap" style="display:none">
         <label class="lab" for="decPass">Passphrase (this message is encrypted)</label>
-        <input type="password" id="decPass" placeholder="the shared passphrase">
+        <input type="password" id="decPass" placeholder="the shared passphrase" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="pass-row">
+          <button type="button" class="linkbtn" id="decPassShow">Show</button>
+        </div>
       </div>
       <div class="actions">
         <button class="act" id="findBtn">Reveal message</button>
@@ -272,19 +344,25 @@
     <!-- INSPECT / STRIP -->
     <div class="card span" id="inspect-panel">
       <h3>Inspect &amp; clean</h3>
-      <div class="hint">The defensive side. Make every hidden character visible, then remove them. This is how a filter — or a careful reader — defeats the trick.</div>
+      <div class="hint">The defensive side. X-ray any text for hidden or deceptive characters — not just Ghost Ink’s Tags block, but the whole family attackers use — then strip them out. This is how a filter, or a careful reader, defeats the trick.</div>
       <div class="field-block">
         <label class="lab" for="inspectIn">Any text</label>
         <textarea id="inspectIn" placeholder="Paste something to X-ray…">Approved for up to $5M in funding — review terms and confirm next steps.</textarea>
       </div>
       <div class="actions">
         <button class="act" id="inspectBtn">Show hidden characters</button>
-        <button class="act ghost mini" id="lureBtn">Load a real spam lure</button>
         <button class="act ghost mini" id="stripBtn">Copy cleaned text</button>
+      </div>
+      <div class="opts" style="margin-top:12px">
+        <span style="color:var(--ink-faint)">Load an example:</span>
+        <button class="act ghost mini" id="lureBtn">Tags spam lure</button>
+        <button class="act ghost mini" id="zwBtn">Zero-width payload</button>
+        <button class="act ghost mini" id="bidiBtn">Bidi (Trojan Source)</button>
       </div>
       <div class="out" id="inspectOut">
         <div class="inspect" id="inspectRender" aria-live="polite">Nothing inspected yet.</div>
         <div class="stat" id="inspectStat"></div>
+        <div class="legend" id="inspectLegend" hidden></div>
       </div>
     </div>
 
@@ -395,6 +473,40 @@
     }
     return {visible, hidden, tagCount:n};
   }
+
+  /* ---------- broader invisible / deceptive character detection ----------
+     Ghost Ink's own carrier is the Tags block, but a good detector catches the
+     whole family attackers reach for. Each category below is flagged and, for
+     Tags, still decoded as a possible Ghost Ink payload. */
+  const INV = {
+    tags:  {label:"Tags block",    note:"the Ghost Ink / ASCII-smuggling carrier"},
+    vs:    {label:"Var. selector", note:"the “emoji smuggling” carrier"},
+    zw:    {label:"Zero-width",    note:"classic invisible format characters"},
+    bidi:  {label:"Bidi control",  note:"reorders how text displays (Trojan Source)"},
+    space: {label:"Unusual space", note:"whitespace that isn’t a normal space"},
+  };
+  const CP_NAME = {
+    0x200B:"ZWSP",0x200C:"ZWNJ",0x200D:"ZWJ",0x2060:"WORD JOINER",0xFEFF:"ZWNBSP/BOM",
+    0x00AD:"SOFT HYPHEN",0x180E:"MONGOLIAN VS",0x2061:"FUNCTION APP",0x2062:"INVIS ×",
+    0x2063:"INVIS SEP",0x2064:"INVIS +",
+    0x202A:"LRE",0x202B:"RLE",0x202C:"PDF",0x202D:"LRO",0x202E:"RLO",
+    0x2066:"LRI",0x2067:"RLI",0x2068:"FSI",0x2069:"PDI",0x200E:"LRM",0x200F:"RLM",0x061C:"ALM",
+    0x00A0:"NBSP",0x202F:"NNBSP",0x205F:"MMSP",0x3000:"IDEOGRAPHIC SP",0x2800:"BRAILLE BLANK",
+  };
+  function classify(cp){
+    if (cp >= 0xE0000 && cp <= 0xE007F) return "tags";
+    if ((cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0xE0100 && cp <= 0xE01EF)) return "vs";
+    if (cp===0x200B||cp===0x200C||cp===0x200D||cp===0x2060||cp===0xFEFF||cp===0x00AD||cp===0x180E||(cp>=0x2061&&cp<=0x2064)) return "zw";
+    if ((cp>=0x202A&&cp<=0x202E)||(cp>=0x2066&&cp<=0x2069)||cp===0x200E||cp===0x200F||cp===0x061C) return "bidi";
+    if (cp===0x00A0||(cp>=0x2000&&cp<=0x200A)||cp===0x202F||cp===0x205F||cp===0x3000||cp===0x2800) return "space";
+    return null;
+  }
+  function cpName(cp, cat){
+    if (cat === "tags"){ const b = cp - TAG_BASE; return (b>=0x20&&b<=0x7e)?`“${String.fromCharCode(b)}”`:"TAG"; }
+    if (cat === "vs"){ return (cp>=0xFE00&&cp<=0xFE0F) ? "VS"+(cp-0xFE00+1) : "VS"+(cp-0xE0100+17); }
+    return CP_NAME[cp] || "?";
+  }
+  const U = cp => "U+" + cp.toString(16).toUpperCase().padStart(4,"0");
 
   /* ---------- base64 over bytes ---------- */
   function bytesToB64(bytes){
@@ -518,6 +630,47 @@
   $("encChk").addEventListener("change", e => {
     $("encPassWrap").style.display = e.target.checked ? "" : "none";
   });
+
+  /* passphrase UX: show/hide, strong-passphrase generator, strength readout.
+     (UX only — the on-wire format and crypto are unchanged.) */
+  function togglePass(input, btn){
+    const wasHidden = input.type === "password";
+    input.type = wasHidden ? "text" : "password";
+    btn.textContent = wasHidden ? "Hide" : "Show";
+  }
+  $("encPassShow").addEventListener("click", () => togglePass($("encPass"), $("encPassShow")));
+  $("decPassShow").addEventListener("click", () => togglePass($("decPass"), $("decPassShow")));
+
+  function genPassphrase(){
+    const alphabet = "23456789abcdefghjkmnpqrstuvwxyz"; // no easily-confused characters
+    const n = 20, rnd = crypto.getRandomValues(new Uint8Array(n));
+    let out = "";
+    for (let i=0;i<n;i++){ if (i>0 && i%5===0) out += "-"; out += alphabet[rnd[i] % alphabet.length]; }
+    return out;
+  }
+  function estimateBits(p){
+    if (!p) return 0;
+    let set = 0;
+    if (/[a-z]/.test(p)) set += 26;
+    if (/[A-Z]/.test(p)) set += 26;
+    if (/[0-9]/.test(p)) set += 10;
+    if (/[^a-zA-Z0-9]/.test(p)) set += 32;
+    return Math.round(p.length * Math.log2(set || 1));
+  }
+  function updateMeter(){
+    const bits = estimateBits($("encPass").value), meter = $("encPassMeter");
+    if (!bits){ meter.textContent = ""; meter.className = "pass-strength"; return; }
+    const kind = bits < 40 ? "weak" : bits < 70 ? "ok" : "strong";
+    meter.className = "pass-strength " + kind;
+    meter.innerHTML = `~${bits} bits · <b>${kind}</b>`;
+  }
+  $("encPass").addEventListener("input", updateMeter);
+  $("encPassGen").addEventListener("click", () => {
+    $("encPass").value = genPassphrase();
+    $("encPass").type = "text";
+    $("encPassShow").textContent = "Hide";
+    updateMeter();
+  });
   $("hideBtn").addEventListener("click", async () => {
     const cover = $("cover").value;
     const secret = $("secret").value;
@@ -585,47 +738,82 @@
   /* =========================================================
      INSPECT / STRIP
   ========================================================= */
-  $("inspectBtn").addEventListener("click", async () => {
+  async function renderInspect(){
     const text = $("inspectIn").value;
-    const render = $("inspectRender");
-    render.innerHTML = "";
-    let tagCount = 0, hidden = "";
+    const render = $("inspectRender"), legend = $("inspectLegend"), stat = $("inspectStat");
+    render.innerHTML = ""; legend.innerHTML = ""; legend.hidden = true;
+    let total = 0, tagsAscii = "";
+    const counts = {};
     for (const ch of text){
       const cp = ch.codePointAt(0);
-      if (isTag(cp)){
-        tagCount++;
-        const b = cp - TAG_BASE;
-        if (b>=0x20 && b<=0x7e) hidden += String.fromCharCode(b);
+      const cat = classify(cp);
+      if (cat){
+        total++; counts[cat] = (counts[cat]||0)+1;
+        if (cat === "tags"){ const b = cp - TAG_BASE; if (b>=0x20&&b<=0x7e) tagsAscii += String.fromCharCode(b); }
         const chip = document.createElement("span");
-        chip.className = "chip";
-        const shown = (b===0x20) ? "␣" : (b>=0x21 && b<=0x7e ? String.fromCharCode(b) : "•");
-        chip.textContent = `${shown} U+${cp.toString(16).toUpperCase()}`;
+        chip.className = "chip " + cat;
+        chip.textContent = `${cpName(cp, cat)} ${U(cp)}`;
+        chip.title = INV[cat].label + " — " + INV[cat].note;
         render.appendChild(chip);
       } else {
         render.appendChild(document.createTextNode(ch));
       }
     }
-    if (tagCount === 0){ render.textContent = "Clean — no Tags-block characters found."; $("inspectStat").textContent=""; return; }
-    const n = `${tagCount} hidden character${tagCount>1?"s":""}`;
-    try{
-      const r = await unpack(b64ToBytes(hidden), null);
-      $("inspectStat").innerHTML = `${n} · recovered payload: <span class="k">${escapeHtml(r.text)}</span>`;
-    }catch(e){
-      if (e.code === "needpass")
-        $("inspectStat").innerHTML = `${n} · an encrypted Ghost Ink payload — a passphrase is required to read it`;
-      else
-        $("inspectStat").innerHTML = `${n} · no Ghost Ink payload here — the invisible tags are woven <b>inside the visible words</b>, the hallmark of keyword obfuscation (see the highlighted chips above)`;
+    if (total === 0){ render.textContent = "Clean — no hidden or deceptive characters found."; stat.textContent = ""; return; }
+
+    // legend for the categories that showed up
+    for (const cat of Object.keys(INV)){
+      if (!counts[cat]) continue;
+      const key = document.createElement("span"); key.className = "key";
+      const sw = document.createElement("span"); sw.className = "sw " + cat;
+      const lbl = document.createElement("span"); lbl.textContent = `${INV[cat].label} ×${counts[cat]}`;
+      key.append(sw, lbl); legend.appendChild(key);
     }
-  });
-  // Load a real-world spam lure: invisible tag chars slipped inside trigger words
+    legend.hidden = false;
+
+    const summary = Object.keys(INV).filter(c => counts[c]).map(c => `${counts[c]} ${INV[c].label.toLowerCase()}`).join(" · ");
+    const head = `${total} hidden/deceptive character${total>1?"s":""} — ${summary}`;
+    if (counts.tags){
+      try{
+        const r = await unpack(b64ToBytes(tagsAscii), null);
+        stat.innerHTML = `${escapeHtml(head)} · recovered Ghost Ink payload: <span class="k">${escapeHtml(r.text)}</span>`;
+        return;
+      }catch(e){
+        if (e.code === "needpass"){ stat.innerHTML = `${escapeHtml(head)} · an encrypted Ghost Ink payload — a passphrase is required to read it`; return; }
+        stat.innerHTML = `${escapeHtml(head)} · Tags woven <b>inside the visible words</b> — the hallmark of keyword obfuscation, not a Ghost Ink message`;
+        return;
+      }
+    }
+    stat.innerHTML = `${escapeHtml(head)} · ${escapeHtml(catAdvice(counts))}`;
+  }
+  function catAdvice(counts){
+    if (counts.bidi)  return "bidi controls can reorder how text displays vs. how it’s stored — the Trojan Source trick";
+    if (counts.vs)    return "hidden bytes can ride inside variation selectors — the “emoji smuggling” carrier";
+    if (counts.zw)    return "zero-width characters are a classic way to hide data or split up words";
+    if (counts.space) return "unusual spaces can stand in for normal ones to slip past exact-match filters";
+    return "use “Copy cleaned text” to strip them";
+  }
+  $("inspectBtn").addEventListener("click", renderInspect);
+  function loadExample(text){
+    $("inspectIn").value = text;
+    renderInspect();
+    $("inspect-panel").scrollIntoView({behavior:"smooth", block:"center"});
+  }
+  // Tags spam lure: invisible tag chars slipped inside trigger words (keyword obfuscation)
   $("lureBtn").addEventListener("click", () => {
     const T = String.fromCodePoint(0xE0020); // invisible tag "space"
-    const lure =
+    loadExample(
       "You've been pre-approved for up to $5" + T + "M in fun" + T + "ding through our " +
-      "Line of Cre" + T + "dit or Bridge Fun" + T + "ding programs. Review your ter" + T + "ms and confirm next steps.";
-    $("inspectIn").value = lure;
-    $("inspectBtn").click();
-    $("inspect-panel").scrollIntoView({behavior:"smooth", block:"center"});
+      "Line of Cre" + T + "dit or Bridge Fun" + T + "ding programs. Review your ter" + T + "ms and confirm next steps.");
+  });
+  // Zero-width payload: invisible format chars hidden inside and after ordinary text
+  $("zwBtn").addEventListener("click", () => {
+    const runs = "\u200B\u200C\u200D\u2060".repeat(6);
+    loadExample("This looks like an ordi\u200Bnary sentence." + runs + " Nothing to see here.");
+  });
+  // Bidi / Trojan Source: an override makes the display order lie about the stored order
+  $("bidiBtn").addEventListener("click", () => {
+    loadExample("Attachment: resume_\u202Efdp.exe\u202C — the name displays as a PDF, but the stored bytes say .exe");
   });
 
   /* =========================================================
@@ -675,7 +863,13 @@
     host.appendChild(svg);
   })();
   $("stripBtn").addEventListener("click", () => {
-    const clean = [...$("inspectIn").value].filter(ch => !isTag(ch.codePointAt(0))).join("");
+    let clean = "";
+    for (const ch of $("inspectIn").value){
+      const cat = classify(ch.codePointAt(0));
+      if (cat === "space") clean += " ";   // normalise odd spaces to a plain space
+      else if (cat) continue;              // drop tags / var-selectors / zero-width / bidi
+      else clean += ch;
+    }
     copy(clean, $("stripBtn"), "Copied cleaned text");
   });
 
@@ -697,18 +891,22 @@
     $("secret").value = DEF.secret;
     $("encChk").checked = false;
     $("encPassWrap").style.display = "none";
-    $("encPass").value = "";
+    $("encPass").value = ""; $("encPass").type = "password";
+    $("encPassShow").textContent = "Show";
+    $("encPassMeter").textContent = ""; $("encPassMeter").className = "pass-strength";
     document.querySelector('input[name=place][value="append"]').checked = true;
     $("hideOut").className = DEF.hideOut.cls; $("hideOut").innerHTML = DEF.hideOut.html;
     // find panel
     $("carrier").value = "";
     $("decPassWrap").style.display = "none";
-    $("decPass").value = "";
+    $("decPass").value = ""; $("decPass").type = "password";
+    $("decPassShow").textContent = "Show";
     $("findOut").className = DEF.findOut.cls; $("findOut").innerHTML = DEF.findOut.html;
     // inspect panel
     $("inspectIn").value = DEF.inspectIn;
     $("inspectRender").innerHTML = DEF.inspectRender;
     $("inspectStat").textContent = "";
+    $("inspectLegend").innerHTML = ""; $("inspectLegend").hidden = true;
     // hero
     heroLit = false;
     paintStage(false);
@@ -724,6 +922,41 @@
     const isDark = cur ? cur === "dark" : prefersDark;
     document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
   });
+
+  /* =========================================================
+     PWA: offline service worker + install affordance
+  ========================================================= */
+  if ("serviceWorker" in navigator){
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{}));
+  }
+  const installBtn = $("install"), iosHint = $("iosHint");
+  const isStandalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS reports as Mac
+  let deferredPrompt = null;
+
+  // Android / Chromium: capture the native install prompt.
+  addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!isStandalone) installBtn.hidden = false;
+  });
+  addEventListener("appinstalled", () => { installBtn.hidden = true; iosHint.hidden = true; deferredPrompt = null; });
+
+  // iOS Safari has no beforeinstallprompt — offer the manual Add-to-Home-Screen path.
+  if (isIOS && !isStandalone) installBtn.hidden = false;
+
+  installBtn.addEventListener("click", async () => {
+    if (deferredPrompt){
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice.catch(()=>{});
+      deferredPrompt = null;
+      installBtn.hidden = true;
+    } else {
+      iosHint.hidden = !iosHint.hidden;
+    }
+  });
+  $("iosHintClose").addEventListener("click", () => { iosHint.hidden = true; });
 
   /* ---------- helpers ---------- */
   function setOut(el, text, kind){
