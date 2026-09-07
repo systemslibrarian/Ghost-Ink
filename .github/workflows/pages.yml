@@ -29,17 +29,12 @@ jobs:
       - run: npm ci
       - run: npm run test:unit
 
-  dependency-review:
-    name: dependency review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-      - uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
+  # NO DEPENDENCY-REVIEW JOB. `actions/dependency-review-action` requires the
+  # repository's Dependency graph, which is not enabled here, and without it the
+  # action hard-fails in about four seconds — it red-lit every Dependabot PR while
+  # the unit and three browser suites were all passing. Dependabot itself still
+  # runs (.github/dependabot.yml). Re-add this only after enabling Dependency
+  # graph in the repository settings, or it will fail exactly the same way.
 
   browser:
     name: browser tests (${{ matrix.project }})
