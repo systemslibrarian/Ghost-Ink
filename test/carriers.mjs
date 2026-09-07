@@ -1,23 +1,12 @@
-// Carrier tests. Unlike roundtrip.mjs — which is a deliberately independent
-// re-implementation — this one slices the page's OWN pure codec section out of
-// index.html and exercises it, so the three carriers (Tags, variation selectors,
-// zero-width) are checked as shipped. No DOM is needed: the sliced region is pure.
-import { readFileSync } from "node:fs";
-import { webcrypto } from "node:crypto";
+/* Carrier tests. Unlike roundtrip.mjs — which is a deliberately independent
+ * re-implementation — this suite exercises the page's OWN codec, sliced out of
+ * app.js by test/lib/slice.mjs, so all four carriers (Unicode Tags, variation
+ * selectors, zero-width, trailing whitespace) are checked exactly as shipped.
+ */
 import assert from "node:assert/strict";
+import { loadCodec } from "./lib/slice.mjs";
 
-const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
-const start = script.indexOf("const TAG_BASE");
-const end = script.indexOf("/* =========================================================\n     HERO");
-assert.ok(start > 0 && end > start, "could not slice the codec section");
-const body = script.slice(start, end);
-
-const document = { getElementById: () => null };
-const fn = new Function("crypto", "document", body + `
-  return {CARRIERS, extractPayload, packPlain, packEnc, unpack, peek, weave, toTags,
-          tagsToAscii, bytesToB64, b64ToBytes, classify, isTag, skeleton, CONFUSABLE};`);
-const M = fn(webcrypto, document);
+const M = loadCodec();
 
 let n = 0;
 const ok = (c, m) => { assert.ok(c, m); n++; };

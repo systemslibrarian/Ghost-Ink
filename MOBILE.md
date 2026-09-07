@@ -42,7 +42,7 @@ own machine** — I scaffolded the config, but these steps run on your Mac.
 ### One-time setup
 ```bash
 npm install                 # pulls in @capacitor/core, cli, ios, android
-npm run build               # assembles dist/ from index.html + manifest + sw.js + icons
+npm run build               # assembles dist/ from index.html, app.css, app.js, manifest, sw.js, icons
 npx cap add ios             # creates the native ios/ project (Mac only)
 npx cap add android         # creates the native android/ project
 ```

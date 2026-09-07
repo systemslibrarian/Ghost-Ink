@@ -1,22 +1,28 @@
 {
   "name": "ghost-ink",
   "version": "1.0.0",
-  "description": "Ghost Ink — an educational ASCII-smuggling exhibit. Installable web app (PWA) plus optional native iOS/Android shells via Capacitor.",
+  "description": "Ghost Ink — an educational security exhibit on text concealment, deception, and the detection boundaries that catch each one. Static, offline-capable, no backend.",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node test/roundtrip.mjs && node test/carriers.mjs",
     "build": "node build.mjs",
+    "serve": "node test/serve.mjs",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node test/roundtrip.mjs && node test/container.mjs && node test/carriers.mjs && node test/build.mjs && node test/consistency.mjs",
+    "test:e2e": "playwright test",
     "cap:sync": "npm run build && cap sync",
     "cap:ios": "npm run build && cap sync ios && cap open ios",
     "cap:android": "npm run build && cap sync android && cap open android"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.1.0"
-  },
-  "dependencies": {
+    "@axe-core/playwright": "4.10.2",
     "@capacitor/android": "^6.1.0",
+    "@capacitor/cli": "^6.1.0",
     "@capacitor/core": "^6.1.0",
-    "@capacitor/ios": "^6.1.0"
-  }
+    "@capacitor/ios": "^6.1.0",
+    "@playwright/test": "1.63.0"
+  },
+  "files": [
+    "dist"
+  ]
 }

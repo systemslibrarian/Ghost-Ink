@@ -1,10 +1,16 @@
 /* Ghost Ink service worker — offline support for the installable app.
-   Everything is same-origin and static; this just makes the exhibit work
-   with no network. Bump CACHE when the asset list or index.html changes. */
-const CACHE = "ghost-ink-v4";
+ *
+ * The cache name is injected by build.mjs from a hash of the asset contents, so
+ * it cannot be forgotten when a file changes: any edit to index.html, app.css,
+ * app.js or the manifest produces a different cache and a clean activation.
+ * test/build.mjs asserts that the deployed name matches the deployed bytes.
+ */
+const CACHE = "__CACHE__";
 const ASSETS = [
   "./",
   "./index.html",
+  "./app.css",
+  "./app.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -14,9 +20,7 @@ const ASSETS = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())
-  );
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -31,20 +35,25 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  // Leave cross-origin (e.g. Google Fonts) to the browser; CSS has system fallbacks.
+  // Ghost Ink has no third-party dependency; anything cross-origin is not ours.
   if (url.origin !== self.location.origin) return;
 
-  // Network-first for page navigations so updates land when online; cache is the offline fallback.
-  if (req.mode === "navigate") {
+  // Network-first for navigations and for the app's own code, so a deploy lands
+  // as soon as the user is online rather than waiting for a cache to expire.
+  const codePath = /\/(index\.html|app\.js|app\.css|manifest\.webmanifest)$/.test(url.pathname);
+  if (req.mode === "navigate" || codePath) {
     e.respondWith(
       fetch(req)
-        .then((r) => { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); return r; })
-        .catch(() => caches.match("./index.html").then((r) => r || caches.match("./")))
+        .then((r) => {
+          if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); }
+          return r;
+        })
+        .catch(() => caches.match(req).then((hit) => hit || caches.match("./index.html")).then((r) => r || caches.match("./")))
     );
     return;
   }
 
-  // Cache-first for static assets, filling the cache as they're fetched.
+  // Cache-first for immutable assets (icons), filling the cache as they're fetched.
   e.respondWith(
     caches.match(req).then((hit) =>
       hit || fetch(req).then((resp) => {
