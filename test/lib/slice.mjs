@@ -13,6 +13,7 @@ const EXPORTS = [
   "skeleton", "CONFUSABLE", "SCRIPT_OF", "crc32", "parseV2", "buildHeader",
   "HDR", "MAGIC", "V2", "MODE_PLAIN", "MODE_GCM", "KDF_NONE", "KDF_PBKDF2_SHA256",
   "KDF_ITERS", "KDF_MIN", "KDF_MAX", "SALT_LEN", "NONCE_LEN", "GCM_TAG", "INV",
+  "LEX_GROUPS", "LEX_INDEX", "lexTokens", "lexCapacity",
 ];
 
 export function loadCodec() {

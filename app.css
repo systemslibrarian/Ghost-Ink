@@ -168,6 +168,13 @@
   .chip.space{background:var(--paper); color:var(--ink-faint); border-color:var(--edge)}
   /* compact chips, for showing payload positions inline in a hide result */
   .chip.tight{font-size:10.5px; padding:0 3px; margin:0; border-radius:4px}
+  /* word-choice substitutions carry real words, so they stay readable: the box
+     and the doubled underline do the work, never the colour on its own. */
+  .lex-legend{font-size:12.5px; color:var(--ink-faint); font-family:var(--font-mono);
+    border-left:3px solid var(--uv); padding-left:8px; margin-top:8px}
+  .chip.lex{font-family:var(--font-serif); font-size:inherit; padding:0 3px;
+    background:var(--paper); color:var(--ink); border-color:var(--uv);
+    border-bottom-width:3px; border-bottom-style:double}
   .result-text.lit{line-height:2}
   .opts-lab{color:var(--ink-faint)}
   .carrier-note{font-size:12px; color:var(--ink-faint); margin:-6px 0 13px;

@@ -301,6 +301,164 @@
     return out;
   }
 
+  /* ---------- lexical codebook — the semantic carrier ----------
+     Every carrier above hides bytes in characters a reader cannot see. This one
+     hides them in *which word was chosen*. Every codepoint in the output is
+     ordinary and legitimate, nothing is invisible, and the visible text really
+     does change — which is the whole point: the codepoint X-ray below is
+     structurally blind to it, and so is the positional whitespace pass.
+
+     Groups are canonically ordered and sized 2^k, so the rank of the word that
+     actually appears carries k bits. A word belongs to exactly one group, and
+     any occurrence of any codebook word is a coding point — which is what makes
+     decoding deterministic without a key, and what makes the codebook itself
+     the secret.
+
+     A hand-curated working subset, in the same spirit as the confusable table
+     above: chosen for legibility, not coverage. It is not a thesaurus, it is not
+     derived from one, and substituted prose reads a little unnaturally. */
+  const LEX_GROUPS = [
+    // 2 bits each
+    ["big","large","sizable","substantial"],
+    ["small","little","minor","modest"],
+    ["quick","fast","rapid","swift"],
+    ["begin","start","commence","initiate"],
+    ["finish","complete","conclude","finalise"],
+    ["show","display","present","illustrate"],
+    ["help","assist","aid","support"],
+    ["change","alter","modify","revise"],
+    ["obtain","acquire","receive","secure"],
+    ["idea","concept","notion","premise"],
+    ["problem","issue","difficulty","complication"],
+    ["important","significant","crucial","essential"],
+    ["often","frequently","regularly","routinely"],
+    ["method","approach","technique","procedure"],
+    ["result","outcome","consequence","upshot"],
+    ["choose","select","pick","nominate"],
+    ["explain","describe","clarify","expound"],
+    ["check","verify","confirm","validate"],
+    ["build","construct","assemble","fabricate"],
+    ["remove","delete","strip","excise"],
+    ["hidden","concealed","obscured","masked"],
+    ["message","note","memo","dispatch"],
+    ["nearly","almost","approximately","roughly"],
+    ["therefore","thus","hence","consequently"],
+    ["however","nevertheless","nonetheless","regardless"],
+    ["usual","typical","ordinary","standard"],
+    ["strange","odd","peculiar","curious"],
+    ["allow","permit","enable","authorise"],
+    ["reduce","lower","decrease","diminish"],
+    ["increase","raise","boost","expand"],
+    // 1 bit each
+    ["about","concerning"], ["use","employ"], ["find","locate"], ["keep","retain"],
+    ["give","provide"], ["make","create"], ["think","believe"], ["seem","appear"],
+    ["ask","request"], ["tell","inform"], ["many","numerous"], ["real","genuine"],
+    ["clear","evident"], ["hard","difficult"], ["easy","simple"], ["new","fresh"],
+    ["whole","entire"], ["part","portion"], ["place","location"], ["time","moment"],
+    ["way","manner"], ["thing","item"], ["person","individual"], ["group","set"],
+    ["number","count"], ["because","since"], ["maybe","perhaps"], ["always","invariably"],
+    ["after","following"], ["under","beneath"], ["over","above"], ["near","close"],
+    ["through","via"], ["also","additionally"], ["quite","fairly"], ["very","highly"],
+    ["said","stated"], ["next","subsequent"], ["last","final"], ["first","initial"],
+  ];
+
+  /* word -> which group it belongs to, its rank in that group, and how many bits
+     that rank is worth. Built once; a word in two groups would be ambiguous on
+     decode, so the build refuses it. */
+  const LEX_INDEX = (() => {
+    const m = new Map();
+    LEX_GROUPS.forEach((g, gi) => {
+      const bits = Math.log2(g.length);
+      if (!Number.isInteger(bits) || bits < 1) throw new Error("lex: group " + gi + " is not 2^k");
+      g.forEach((w, rank) => {
+        if (m.has(w)) throw new Error("lex: “" + w + "” appears in more than one group");
+        m.set(w, {gi, rank, bits});
+      });
+    });
+    return m;
+  })();
+
+  /* Tokenise into runs of letters and everything between them, so the gaps —
+     punctuation, spacing, newlines — pass through byte-for-byte. */
+  function lexTokens(text){
+    const out = [];
+    const re = /[A-Za-z]+/g;
+    let last = 0, m;
+    while ((m = re.exec(text))){
+      if (m.index > last) out.push({gap: text.slice(last, m.index)});
+      out.push({word: m[0]});
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) out.push({gap: text.slice(last)});
+    return out;
+  }
+
+  /* How much this particular cover can carry. Unlike every other carrier here,
+     the answer is a property of the cover text, not of the payload. */
+  function lexCapacity(cover){
+    let bits = 0, points = 0;
+    for (const t of lexTokens(cover)){
+      if (t.word === undefined) continue;
+      const e = LEX_INDEX.get(t.word.toLowerCase());
+      if (e){ bits += e.bits; points++; }
+    }
+    return {bits, points, bytes: Math.floor(bits / 8)};
+  }
+
+  // Match the capitalisation of the word being replaced, so the prose survives.
+  function lexCase(src, word){
+    if (src.length > 1 && src === src.toUpperCase()) return word.toUpperCase();
+    if (src[0] === src[0].toUpperCase()) return word[0].toUpperCase() + word.slice(1);
+    return word;
+  }
+
+  function lexEncode(bytes, cover){
+    const cap = lexCapacity(cover);
+    const need = bytes.length * 8;
+    if (cap.bits < need) throw {code:"capacity", need, have: cap.bits, points: cap.points,
+      why:`the cover carries ${cap.bits} bits across ${cap.points} coding points; this payload needs ${need}`};
+    let bi = 0;
+    // past the end of the payload the ranks are arbitrary; the decoder stops at
+    // the length the container itself declares, so the tail is free to be zero.
+    const bit = () => { const v = bi < need ? (bytes[bi >> 3] >> (7 - (bi & 7))) & 1 : 0; bi++; return v; };
+    let out = "";
+    for (const t of lexTokens(cover)){
+      if (t.word === undefined){ out += t.gap; continue; }
+      const e = LEX_INDEX.get(t.word.toLowerCase());
+      if (!e){ out += t.word; continue; }
+      let rank = 0;
+      for (let k = 0; k < e.bits; k++) rank = (rank << 1) | bit();
+      out += lexCase(t.word, LEX_GROUPS[e.gi][rank]);
+    }
+    return out;
+  }
+
+  function lexDecode(text){
+    const bits = [];
+    for (const t of lexTokens(text)){
+      if (t.word === undefined) continue;
+      const e = LEX_INDEX.get(t.word.toLowerCase());
+      if (!e) continue;
+      for (let k = e.bits - 1; k >= 0; k--) bits.push((e.rank >> k) & 1);
+    }
+    const nb = bits.length >> 3;
+    if (nb < HDR) return null;
+    const all = new Uint8Array(nb);
+    for (let i = 0; i < nb; i++){
+      let b = 0;
+      for (let j = 0; j < 8; j++) b = (b << 1) | bits[i*8 + j];
+      all[i] = b;
+    }
+    /* The coding points carry on past the end of the payload, so unlike the
+       invisible carriers this one has to be told where to stop — and the only
+       honest source of that is the container's own declared lengths. parseV2
+       refuses trailing bytes, so without this every read would fail. */
+    if (!isV2(all)) return null;
+    const total = HDR + all[11] + all[12] + rd32(all, 13);
+    if (total > nb || total < HDR) return null;
+    return all.slice(0, total);
+  }
+
   /* ---------- carriers ----------
      The container format and the crypto are carrier-independent. Only the last
      mile changes: which invisible Unicode block the bytes actually ride in.
@@ -383,6 +541,18 @@
         return out;
       },
       count(text){ const m = /[ \t]+$/.exec(text); return m ? m[0].length : 0; }
+    },
+    /* Word choice — the only carrier here that changes the visible text, and the
+       only one that leaves nothing unusual behind to find. It rewrites the cover
+       instead of riding alongside it, so it takes the cover as an argument and
+       weave() does not apply. Capacity belongs to the cover, not the payload. */
+    lex: {
+      label: "Word choice", cat: null, coverBound: true,
+      note: "The bits are in which synonym was chosen, not in any character. Nothing is invisible and nothing is unusual, so the X-ray cannot see it at all \u2014 but the cover text itself changes, and how much it can carry depends entirely on how many codebook words it already contains.",
+      capacity: lexCapacity,
+      encodeInto: lexEncode,
+      decode: lexDecode,
+      count(text){ return lexCapacity(text).points; }
     }
   };
 
@@ -392,6 +562,11 @@
     let seen = null;
     for (const key of Object.keys(CARRIERS)){
       const C = CARRIERS[key];
+      /* A cover-bound carrier cannot be recognised from the text alone: every
+         word in it is a legitimate English word, and "was this the author's word
+         or the codebook's?" has no answer without the codebook. Skipping it here
+         is the blind spot, made deliberate rather than accidental. */
+      if (C.coverBound) continue;
       const n = C.count(text);
       if (!n) continue;
       if (!seen) seen = {carrier:key, bytes:null, count:n};
@@ -418,6 +593,7 @@
     {id:"interaction",name:"Interaction",   blurb:"The disagreement is in the transfer. What you asked for is not what you received."},
     {id:"transform", name:"Transformation", blurb:"The disagreement is in time. The string that was checked is not the string that gets used."},
     {id:"media",     name:"Media",          blurb:"The disagreement is in the medium. The payload is not in the text at all."},
+    {id:"semantics", name:"Semantics",      blurb:"The disagreement is in the words themselves. Every character is ordinary; the message is in which word was chosen."},
   ];
   // detector: which class of inspection actually catches this, and which does not.
   const DETECTORS = {
@@ -429,6 +605,8 @@
     dom:        "DOM- and rendering-aware extraction",
     clipboard:  "clipboard verification",
     media:      "statistical or steganographic media analysis",
+    codebook:   "possession of the codebook",
+    distribution: "distributional or stylometric analysis of word choice",
   };
   const TECHNIQUES = [
     {id:"tags", layer:"encoding", name:"Unicode Tags", anchor:"#hide-panel",
@@ -477,6 +655,11 @@
      caught:["media"], missed:["codepoint","positional","normalise","dom"],
      defence:"re-encode or resample uploaded media",
      survivability:"destroyed by any lossy re-encode"},
+    {id:"lex", layer:"semantics", name:"Word choice (lexical substitution)", anchor:"#lex-card",
+     where:"which synonym was used", human:"an ordinary sentence", machine:"an ordinary sentence, and a payload",
+     caught:["codebook","distribution"], missed:["codepoint","positional","normalise","confusable","bidi","dom"],
+     defence:"there is no clean one \u2014 paraphrase or regenerate text you did not write",
+     survivability:"excellent \u2014 nothing to strip, and it survives normalisation, trimming and re-typing"},
   ];
 
   /* =========================================================
@@ -586,14 +769,31 @@
 
     const carrierKey = document.querySelector('input[name=carrier]:checked').value;
     const C = CARRIERS[carrierKey];
-    const payload = C.encode(bytes);
-    const place = C.appendOnly ? "append" : mode;   // scattered spaces would be plainly visible
-    lastStego = weave(cover, payload, place);
+    let payload, place, stego, cap = null;
+    if (C.coverBound){
+      /* No invisible payload to weave: the cover *is* the payload. It fails
+         closed when the cover is too short, which for this carrier is the
+         common case rather than the exceptional one. */
+      cap = C.capacity(cover);
+      try{
+        stego = C.encodeInto(bytes, cover);
+      }catch(e){
+        setOut(out, `Not enough cover. ${e.why || "the cover text cannot carry this payload"}. ` +
+          `Lengthen the cover text, or shorten the secret.`, "bad");
+        return;
+      }
+      payload = stego; place = "substitute";
+    } else {
+      payload = C.encode(bytes);
+      place = C.appendOnly ? "append" : mode;   // scattered spaces would be plainly visible
+      stego = weave(cover, payload, place);
+    }
+    lastStego = stego;
     lastCover = cover;
     lastMode = place;
     lastCarrier = carrierKey;
     lastSteps = {
-      secret, encrypted: $("encChk").checked, container: bytes, payload,
+      secret, encrypted: $("encChk").checked, container: bytes, payload, cap,
       b64: carrierKey === "tags" ? bytesToB64(bytes) : null
     };
     hideLit = false; hideWork = false;
@@ -612,13 +812,27 @@
     const bytes = containerSize();
     const picked = document.querySelector('input[name=carrier]:checked').value;
     const costs = Object.keys(CARRIERS)
+      .filter(k => !CARRIERS[k].coverBound)
       .map(k => `${k === picked ? "<b>" : ""}${CARRIERS[k].label} ${CARRIERS[k].cost(bytes)}${k === picked ? "</b>" : ""}`)
       .join(" · ");
+    const P = CARRIERS[picked];
+    let head = `${bytes}-byte payload → hidden characters: ${costs}`;
+    if (P.coverBound){
+      /* This carrier's cost is a property of the cover, so quoting a per-byte
+         figure alongside the others would be a lie. Quote the cover instead. */
+      const cap = P.capacity($("cover").value);
+      const need = bytes * 8;
+      head += `<br><b>Word choice</b> adds no characters at all: it needs ${need} bits of cover, and this cover ` +
+        `carries <b>${cap.bits}</b> across ${cap.points} coding point${cap.points === 1 ? "" : "s"}` +
+        (cap.bits < need ? ` — <b>not enough</b>.` : ` — enough, with ${cap.bits - need} bits to spare.`);
+    }
     $("carrierNote").innerHTML =
-      `${bytes}-byte payload → hidden characters: ${costs}<br><em>${escapeHtml(CARRIERS[picked].note)}</em>` +
-      (CARRIERS[picked].appendOnly ? `<br><em>Always appended — scattering whitespace through a sentence would be plainly visible.</em>` : "");
+      `${head}<br><em>${escapeHtml(P.note)}</em>` +
+      (P.appendOnly ? `<br><em>Always appended — scattering whitespace through a sentence would be plainly visible.</em>` : "") +
+      (P.coverBound ? `<br><em>Placement does not apply — the bits land wherever the codebook words already are.</em>` : "");
   }
   $("secret").addEventListener("input", refreshCarrierNote);
+  $("cover").addEventListener("input", refreshCarrierNote);   // cover-bound capacity
   $("encChk").addEventListener("change", refreshCarrierNote);
   for (const r of document.querySelectorAll('input[name=carrier]')) r.addEventListener("change", refreshCarrierNote);
   refreshCarrierNote();
@@ -639,14 +853,33 @@
       return;
     }
     revealBtn.hidden = false;
-    revealBtn.textContent = hideLit ? "Hide characters again" : "Reveal hidden characters";
+    revealBtn.textContent = CARRIERS[lastCarrier].coverBound
+      ? (hideLit ? "Hide the marks again" : "Mark the swapped words")
+      : (hideLit ? "Hide characters again" : "Reveal hidden characters");
     $("hideWorkBtn").hidden = false;
     $("hideWorkBtn").textContent = hideWork ? "Hide the working" : "Show your work";
     out.className = "out"; out.innerHTML = "";
 
     const box = document.createElement("div");
     box.className = hideLit ? "result-text lit" : "result-text";
-    if (hideLit){
+    if (hideLit && CARRIERS[lastCarrier].coverBound){
+      /* Nothing here is invisible, so "reveal" means something different: mark
+         the words the codebook swapped. Chips are used rather than a colour so
+         the distinction survives greyscale and colour-blindness. */
+      const before = lexTokens(lastCover), after = lexTokens(lastStego);
+      for (let i = 0; i < after.length; i++){
+        const t = after[i], was = before[i];
+        if (t.word !== undefined && was && was.word !== undefined && was.word !== t.word){
+          const chip = document.createElement("span");
+          chip.className = "chip tight lex";
+          chip.textContent = t.word;
+          chip.title = `was “${was.word}” — same codebook group, different rank`;
+          box.appendChild(chip);
+        } else {
+          box.appendChild(document.createTextNode(t.word !== undefined ? t.word : t.gap));
+        }
+      }
+    } else if (hideLit){
       for (const ch of lastStego){
         const cat = classify(ch.codePointAt(0));
         if (cat){
@@ -664,17 +897,36 @@
       box.textContent = lastStego;
     }
 
-    const added = [...lastStego].length - [...lastCover].length;
     const stat = document.createElement("div"); stat.className = "stat";
-    const where = lastMode === "scatter" && lastCover ? "spread through the visible text" : "appended after the cover text";
-    stat.textContent = hideLit
-      ? `${added} invisible characters, shown in place · ${where} · carrier: ${CARRIERS[lastCarrier].label}`
-      : `${added} invisible ${CARRIERS[lastCarrier].label} characters added · looks identical to the cover`;
+    if (CARRIERS[lastCarrier].coverBound){
+      const before = lexTokens(lastCover), after = lexTokens(lastStego);
+      let swapped = 0;
+      for (let i = 0; i < after.length; i++){
+        const w = after[i], was = before[i];
+        if (w.word !== undefined && was && was.word !== undefined && was.word !== w.word) swapped++;
+      }
+      const cap = lastSteps && lastSteps.cap;
+      stat.textContent = hideLit
+        ? `${swapped} word${swapped === 1 ? "" : "s"} swapped, marked in place · carrier: ${CARRIERS[lastCarrier].label}`
+        : `0 characters added — ${swapped} word${swapped === 1 ? "" : "s"} swapped for a synonym` +
+          (cap ? ` across ${cap.points} coding points · the text reads normally and carries nothing unusual` : "");
+    } else {
+      const added = [...lastStego].length - [...lastCover].length;
+      const where = lastMode === "scatter" && lastCover ? "spread through the visible text" : "appended after the cover text";
+      stat.textContent = hideLit
+        ? `${added} invisible characters, shown in place · ${where} · carrier: ${CARRIERS[lastCarrier].label}`
+        : `${added} invisible ${CARRIERS[lastCarrier].label} characters added · looks identical to the cover`;
+    }
 
     const btn = document.createElement("button"); btn.className = "act mini"; btn.textContent = "Copy";
     btn.style.marginTop = "10px";
     btn.addEventListener("click", () => copy(lastStego, btn));
-    out.append(box, stat, btn);
+    out.append(box, stat);
+    if (hideLit && CARRIERS[lastCarrier].coverBound){
+      const n = box.querySelectorAll(".chip.lex").length;
+      out.appendChild(lexMarkNote(`${n} word${n === 1 ? "" : "s"}`));
+    }
+    out.appendChild(btn);
     if (hideWork) out.appendChild(buildWork());
   }
 
@@ -702,11 +954,21 @@
         `iterations, declared lengths, then the body (docs/CONTAINER.md)</em>`],
     ];
     if (S.b64) rows.push(["5 · base64", `${escapeHtml(clip(S.b64, 56))} <em>— ${S.b64.length} ASCII characters</em>`]);
-    const cps = [...S.payload].slice(0, 8).map(ch => U(ch.codePointAt(0))).join(" ");
-    rows.push([`${S.b64 ? 6 : 5} · ${C.label.toLowerCase()}`,
-      `${cps}${[...S.payload].length > 8 ? " …" : ""} <em>— ${[...S.payload].length} invisible characters</em>`]);
-    rows.push([`${S.b64 ? 7 : 6} · woven in`,
-      `<em>${lastMode === "scatter" ? "distributed between the visible characters" : "appended after the cover text"} — placement doesn’t change what decodes</em>`]);
+    if (C.coverBound){
+      const cap = S.cap || C.capacity(lastCover);
+      rows.push([`5 · coding points`,
+        `${cap.points} codebook word${cap.points === 1 ? "" : "s"} in the cover <em>— worth ${cap.bits} bits; ` +
+        `a group of four synonyms carries two bits, a pair carries one</em>`]);
+      rows.push([`6 · substitution`,
+        `<em>each coding point is replaced by the word at the rank the next bits select — ${S.container.length * 8} bits consumed, ` +
+        `the remaining ${Math.max(0, cap.bits - S.container.length * 8)} left arbitrary. The decoder stops at the length the container declares</em>`]);
+    } else {
+      const cps = [...S.payload].slice(0, 8).map(ch => U(ch.codePointAt(0))).join(" ");
+      rows.push([`${S.b64 ? 6 : 5} · ${C.label.toLowerCase()}`,
+        `${cps}${[...S.payload].length > 8 ? " …" : ""} <em>— ${[...S.payload].length} invisible characters</em>`]);
+      rows.push([`${S.b64 ? 7 : 6} · woven in`,
+        `<em>${lastMode === "scatter" ? "distributed between the visible characters" : "appended after the cover text"} — placement doesn’t change what decodes</em>`]);
+    }
     for (const [n, v] of rows){
       const row = document.createElement("div"); row.className = "step";
       const a = document.createElement("div"); a.className = "n"; a.textContent = n;
@@ -927,7 +1189,11 @@
   function newRound(){
     const covers = pick(GAME_COVERS, 5);
     const haunted = new Set(pick([0,1,2,3,4], 1 + Math.floor(Math.random()*3)));
-    const carrierKeys = Object.keys(CARRIERS);
+    /* Invisible carriers only. The game's premise is that inspection is the one
+       way to win, and the cover-bound carrier breaks it twice over: the X-ray
+       cannot see it, and these one-line covers could not carry a container
+       anyway. It is demonstrated in its own panel instead. */
+    const carrierKeys = Object.keys(CARRIERS).filter(k => !CARRIERS[k].coverBound);
     gameRound = covers.map((cover, i) => {
       if (!haunted.has(i)) return {text: cover, haunted: false, marked: false};
       const key = carrierKeys[Math.floor(Math.random()*carrierKeys.length)];
@@ -1824,8 +2090,12 @@
     emSecret: $("emSecret").value,
     hfIn: $("hfIn").value,
     imgSecret: $("imgSecret").value,
+    lexCover: $("lexCover").value,
+    lexSecret: $("lexSecret").value,
     hideOut: {cls: $("hideOut").className, html: $("hideOut").innerHTML},
     findOut: {cls: $("findOut").className, html: $("findOut").innerHTML},
+    lexOut: {cls: $("lexOut").className, text: $("lexOut").textContent},
+    lexFindOut: {cls: $("lexFindOut").className, text: $("lexFindOut").textContent},
   };
   $("reset").addEventListener("click", () => {
     // hide panel
@@ -1847,6 +2117,14 @@
     $("decPass").value = ""; $("decPass").type = "password";
     $("decPassShow").textContent = "Show";
     $("findOut").className = DEF.findOut.cls; $("findOut").innerHTML = DEF.findOut.html;
+    // word-choice panel
+    $("lexCover").value = DEF.lexCover;
+    $("lexSecret").value = DEF.lexSecret;
+    $("lexIn").value = "";
+    lexStego = null; lexLit = false; lexCoverUsed = "";
+    renderLexOut();
+    $("lexFindOut").className = DEF.lexFindOut.cls; $("lexFindOut").textContent = DEF.lexFindOut.text;
+    lexRefreshCap();
     // inspect panel
     $("inspectIn").value = DEF.inspectIn;
     renderInspect();
@@ -1874,6 +2152,146 @@
     $("imgOut").className = "out empty";
     $("imgOut").textContent = "Hide something, then read it back out of the pixels.";
     window.scrollTo({top:0, behavior: reducedMotion() ? "auto" : "smooth"});
+  });
+
+  /* =========================================================
+     WORD CHOICE — the semantic carrier
+     It gets a panel of its own rather than living only in the carrier picker,
+     because it needs a cover roughly two orders of magnitude longer than any
+     other carrier here, and because its detection story is the opposite of
+     every other panel's: there is nothing for the X-ray to find.
+  ========================================================= */
+  let lexStego = null, lexLit = false, lexCoverUsed = "";
+
+  const lexNeeded = () => (HDR + 4 + enc.encode($("lexSecret").value).length) * 8;
+
+  function lexRefreshCap(){
+    const cap = CARRIERS.lex.capacity($("lexCover").value);
+    const need = lexNeeded();
+    const words = ($("lexCover").value.match(/[A-Za-z]+/g) || []).length;
+    $("lexCap").innerHTML =
+      `Cover: ${words} words, of which <b>${cap.points}</b> are in the codebook — ` +
+      `capacity <b>${cap.bits} bits</b> (${cap.bytes} bytes). ` +
+      `This secret needs <b>${need} bits</b> — ` +
+      (cap.bits >= need
+        ? `enough, with ${cap.bits - need} to spare.`
+        : `<b>${need - cap.bits} short</b>. Lengthen the cover or shorten the secret.`);
+  }
+
+  /* The swapped-word marks must be explained in words. The chip's box and its
+     doubled underline are non-colour cues, which satisfies "not by colour
+     alone", but a shape is still not an explanation — and the per-chip title is
+     a mouse affordance that keyboard and screen-reader users never receive. So
+     every marked view carries this line, visibly, for everyone. Deliberately not
+     an aria-label on each chip: that would replace the substituted word with a
+     description and wreck the reading flow, which is the one thing this carrier
+     needs to preserve. */
+  function lexMarkNote(swapped){
+    const note = document.createElement("div");
+    note.className = "lex-legend";   // its own class: a legend is not a stat line
+    note.textContent =
+      `Boxed and double-underlined words are the ${swapped} the codebook substituted; ` +
+      `every other word is the cover text as written. Nothing here is hidden — hover a ` +
+      `marked word to see which word it replaced.`;
+    return note;
+  }
+
+  function renderLexOut(){
+    const out = $("lexOut");
+    if (lexStego === null){
+      out.className = DEF.lexOut.cls; out.textContent = DEF.lexOut.text;
+      $("lexMark").hidden = true; $("lexXray").hidden = true;
+      return;
+    }
+    $("lexMark").hidden = false; $("lexXray").hidden = false;
+    $("lexMark").textContent = lexLit ? "Hide the marks" : "Mark the swapped words";
+    out.className = "out"; out.innerHTML = "";
+
+    const before = lexTokens(lexCoverUsed), after = lexTokens(lexStego);
+    let swapped = 0;
+    const box = document.createElement("div");
+    box.className = "result-text";
+    for (let i = 0; i < after.length; i++){
+      const t = after[i], was = before[i];
+      const changed = t.word !== undefined && was && was.word !== undefined && was.word !== t.word;
+      if (changed) swapped++;
+      if (changed && lexLit){
+        /* A chip, not a colour: the a11y suite requires that nothing on this
+           page is distinguished by colour alone. */
+        const chip = document.createElement("span");
+        chip.className = "chip tight lex";
+        chip.textContent = t.word;
+        chip.title = `was “${was.word}” — same codebook group, different rank`;
+        box.appendChild(chip);
+      } else {
+        box.appendChild(document.createTextNode(t.word !== undefined ? t.word : t.gap));
+      }
+    }
+    const stat = document.createElement("div"); stat.className = "stat";
+    stat.textContent =
+      `${swapped} word${swapped === 1 ? "" : "s"} swapped · 0 characters added · ` +
+      `every codepoint is ordinary ASCII — the X-ray finds nothing here`;
+    const btn = document.createElement("button"); btn.className = "act mini"; btn.textContent = "Copy";
+    btn.style.marginTop = "10px";
+    btn.addEventListener("click", () => copy(lexStego, btn));
+    out.append(box, stat);
+    if (lexLit) out.appendChild(lexMarkNote(`${swapped} word${swapped === 1 ? "" : "s"}`));
+    out.appendChild(btn);
+  }
+
+  $("lexHide").addEventListener("click", () => {
+    const out = $("lexOut"), cover = $("lexCover").value, secret = $("lexSecret").value;
+    if (!secret){ setOut(out, "Add a secret message to hide.", "bad"); return; }
+    let bytes;
+    try{ bytes = packPlain(secret); }
+    catch(e){ setOut(out, "Could not build the message.", "bad"); return; }
+    try{
+      lexStego = CARRIERS.lex.encodeInto(bytes, cover);
+    }catch(e){
+      lexStego = null;
+      setOut(out, `Fails closed: ${e.why || "the cover cannot carry this payload"}.`, "bad");
+      $("lexMark").hidden = true; $("lexXray").hidden = true;
+      return;
+    }
+    lexCoverUsed = cover; lexLit = false;
+    renderLexOut();
+    $("lexIn").value = lexStego;
+  });
+  $("lexMark").addEventListener("click", () => { lexLit = !lexLit; renderLexOut(); });
+  $("lexXray").addEventListener("click", () => loadExample(lexStego));
+  $("lexCover").addEventListener("input", lexRefreshCap);
+  $("lexSecret").addEventListener("input", lexRefreshCap);
+
+  $("lexFind").addEventListener("click", async () => {
+    const out = $("lexFindOut"), text = $("lexIn").value;
+    if (!text.trim()){ setOut(out, "Paste some substituted text first.", "bad"); return; }
+    const bytes = CARRIERS.lex.decode(text);
+    if (!bytes){
+      setOut(out, "No Ghost Ink container in the word choices. Either this text was not written with the codebook, " +
+                  "or it does not carry enough coding points to hold a container.", "bad");
+      return;
+    }
+    try{
+      const r = await unpack(bytes, null);
+      out.className = "out"; out.innerHTML = "";
+      const box = document.createElement("div"); box.className = "result-text"; box.textContent = r.text;
+      const stat = document.createElement("div"); stat.className = "stat";
+      stat.textContent = `read out of ${CARRIERS.lex.capacity(text).points} coding points · ` +
+        `container v${r.version} · not one unusual character was involved — only the codebook made this readable`;
+      out.append(box, stat);
+    }catch(e){
+      if (e.code === "needpass"){ setOut(out, "An encrypted payload is present. This panel reads plaintext only — use the main Hide panel for the encrypted path.", "bad"); return; }
+      setOut(out, `The word choices decode to bytes, but not to a valid container${e.why ? " — " + e.why : ""}.`, "bad");
+    }
+  });
+  lexRefreshCap();
+  $("lexClear").addEventListener("click", () => {
+    $("lexCover").value = ""; $("lexSecret").value = ""; $("lexIn").value = "";
+    lexStego = null; lexLit = false;
+    renderLexOut();
+    $("lexFindOut").className = DEF.lexFindOut.cls; $("lexFindOut").textContent = DEF.lexFindOut.text;
+    lexRefreshCap();
+    $("lexSecret").focus();
   });
 
   /* =========================================================

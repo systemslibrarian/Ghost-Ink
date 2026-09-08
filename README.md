@@ -5,9 +5,9 @@ different readers** — and about which class of inspection catches each kind of
 disagreement, and which is structurally blind to it.
 
 It hides a message in the invisible Unicode **Tags** block (U+E0000–U+E007F),
-then detects and strips it — and then does the same for nine other techniques
-that a codepoint scan would never find. Static, offline-capable, no backend, and
-**no third-party network request of any kind**.
+then detects and strips it — and then does the same for ten other techniques,
+seven of which a codepoint scan would never find. Static, offline-capable, no
+backend, and **no third-party network request of any kind**.
 
 **[Live demo](https://systemslibrarian.github.io/Ghost-Ink/)**
 
@@ -25,8 +25,9 @@ caught it:
 | **Interaction** | the transfer | clipboard substitution |
 | **Transformation** | time — check vs. use | normalisation, case folding |
 | **Media** | the medium | image LSB |
+| **Semantics** | the words themselves | word choice (lexical substitution) |
 
-The page carries one comparison matrix covering all ten, and every card that
+The page carries one comparison matrix covering all eleven, and every card that
 demonstrates a technique states its **detection boundary**: the class of
 inspection that catches it, and the classes that cannot. The lesson the exhibit
 is built to deliver is a single sentence:
@@ -36,7 +37,10 @@ is built to deliver is a single sentence:
 That is why the exhibit deliberately includes techniques its own detector misses.
 The trailing-whitespace carrier uses no unusual codepoint at all, so the Inspect
 panel — built entirely around unusual codepoints — has to find it positionally or
-not at all. The CSS panel it cannot find by any means.
+not at all. The CSS panel it cannot find by any means. Neither can it find the
+word-choice carrier, which hides bits in *which synonym was used*: every character
+it emits is ordinary, so there is not even a candidate to weigh. The codepoint
+scan catches four of the eleven techniques here and is blind to seven.
 
 ## Documentation
 
@@ -51,13 +55,23 @@ Read these before relying on any claim here:
   condition on which decoding fails closed.
 * **[docs/REFERENCES.md](docs/REFERENCES.md)** — primary sources.
 * **[SECURITY.md](SECURITY.md)** — what to report, and what is out of scope.
+* **[CHANGELOG.md](CHANGELOG.md)** — what changed and why, including corrections
+  to earlier claims.
 
 ## Honest limitations, up front
 
 * **Hiding content is strong; hiding its existence is not.** AES-256-GCM protects
   the message. The *presence* of a payload is trivially detectable — this page's
-  own Inspect panel does it in one pass, Microsoft ships a Defender signature for
-  the Tags carrier, and VS Code highlights invisible characters by default.
+  own Inspect panel does it in one pass for every *invisible* carrier, Microsoft
+  ships a Defender signature for the Tags carrier, and VS Code highlights invisible
+  characters by default. The word-choice carrier is the exception, and it buys that
+  by giving up invisibility: it rewrites your cover text rather than hiding beside
+  it. What that costs, and what still catches it, is in
+  [docs/KNOWN-GAPS.md](docs/KNOWN-GAPS.md).
+* **The synonym codebook is a hand-curated working subset**, roughly 70 groups of
+  two or four words in one register of business English. It is not a thesaurus and
+  encodes no notion of sense or part of speech, so substituted prose reads a little
+  unnaturally.
 * **The confusable table is a hand-curated working subset inspired by UTS #39, not
   an implementation of it.** Roughly 150 mappings, chosen for legibility. Do not
   use it as a confusable detector.
@@ -70,7 +84,7 @@ Read these before relying on any claim here:
 
 ## What is in it
 
-**Core** — hide a message in one of four carriers, find one without being told
+**Core** — hide a message in one of five carriers, find one without being told
 which carrier was used, and X-ray any text for the whole family of hidden or
 deceptive characters.
 
@@ -81,8 +95,8 @@ look-alike forge that shows you the Punycode your browser would fall back to.
 
 **The same trick, other disguises** — display order vs. stored order (Trojan
 Source), what a scraper reads when text is hidden by CSS, clipboard substitution,
-normalisation and case-folding bypass, and least-significant-bit stego in an
-image.
+normalisation and case-folding bypass, least-significant-bit stego in an image,
+and a message carried entirely by which synonym was chosen.
 
 ## How it works
 
@@ -91,7 +105,8 @@ secret → UTF-8 → [optional AES-256-GCM] → v2 container → carrier → cov
 ```
 
 The container is independent of the carrier: Unicode Tags, variation selectors,
-zero-width, trailing whitespace and image low-bits all move the same structure.
+zero-width, trailing whitespace, word choice and image low-bits all move the same
+structure.
 The **Show your work** button walks the pipeline using the values that produced
 whatever is on screen.
 
@@ -103,6 +118,7 @@ whatever is on screen.
 | **Variation selectors** | U+FE00–FE0F, U+E0100–E01EF | 1 char | 256 slots exactly, so one selector carries one byte. |
 | **Zero-width** | ZWSP / ZWNJ / ZWJ / word joiner | 4 chars | Two bits per character. |
 | **Trailing whitespace** | U+0020 / U+0009 | 8 chars | SNOW. No exotic codepoint — which is the point. |
+| **Word choice** | no block at all | 0 chars added | Lexical substitution. Cover-bound: capacity is a property of the cover, not the payload, so there is no per-byte figure. |
 
 ### Container v2
 
@@ -173,7 +189,7 @@ npm run test:e2e    # Playwright, runs npm run build first
 | --- | --- |
 | `test/roundtrip.mjs` | A deliberately **independent** re-implementation of the decoder, written from the spec and importing nothing from the app. Checks the invariants and cross-validates v2 against a second implementation. |
 | `test/container.mjs` | The v2 format, and above all its refusals: header authentication, the mode-downgrade attack, bounded KDF iterations, truncation, trailing bytes, CRC mismatch, noise rejection, v1 legacy read. |
-| `test/carriers.mjs` | All four carriers as shipped — round trips, advertised cost vs. actual output, both weave modes, encrypted payloads, carrier auto-detection, the variation-selector block boundary, and SNOW's blind spot asserted rather than assumed. |
+| `test/carriers.mjs` | All five carriers as shipped — round trips, advertised cost vs. actual output, both weave modes, encrypted payloads, carrier auto-detection, the variation-selector block boundary, and SNOW's blind spot asserted rather than assumed. For the cover-bound word-choice carrier: capacity accounting, fail-closed on insufficient cover, case preservation, that only whole words change, that the codebook is unambiguous, and its blind spot asserted the same way — no unusual codepoint, nothing positional, no look-alike, and auto-detection returning nothing. |
 | `test/build.mjs` | That the CSP hash matches the stylesheet it authorises, that the policy is actually restrictive, that no subresource is off-site, that `dist/` contains exactly the application, and that the cache name matches the deployed bytes. |
 | `test/consistency.mjs` | Anti-drift. Carrier and panel counts derived from the code rather than typed twice; every taxonomy anchor resolves; every technique is demonstrated by a card and vice versa; every path the README names exists; the corrected telemetry facts cannot regress. |
 
@@ -187,11 +203,11 @@ application's own codec by slicing the pure region out of `app.js`
 | --- | --- |
 | `e2e/disguises.spec.js` | The five disguise panels: that both bidi panes hold the identical string, that the stored-order pane is **not itself reordered** by the controls it displays (verified by measuring glyph positions), that hidden text is present in the DOM and occupies no visible area, that copy is replaced with exactly the inert string, that the normalisation examples produce the stated NFKC and case-fold results, that image LSB round-trips, that **no channel moves by more than 1** and alpha is untouched, and that corrupt length headers fail cleanly. |
 | `e2e/security.spec.js` | Twenty hostile fragments against the scraper panel — script elements, event handlers, `img onerror`, remote images, SVG script, iframes, `object`/`embed`, `javascript:` URLs, forms, style elements, `url()`, `@import`, meta refresh, `base`, unclosed and case-mixed markup, entity-encoded handlers, `srcdoc` smuggling, remote stylesheets, video posters. Each asserts no execution, **no off-site request**, no navigation, no restyling of the parent, and no escape from the frame. Plus the page-level CSP and a whole-exhibit zero-third-party-request check. |
-| `e2e/panels.spec.js` | Clear on all ten panels that have one, Reset restoring every panel, all four carriers end to end with auto-detection, and the encrypted path reporting authentication. |
-| `e2e/a11y.spec.js` | axe-core over WCAG 2.0/2.1 A and AA rule tags, failing on serious and critical violations, before and after every panel has produced output; full tab-order walk asserting visible focus on every control; keyboard-only operation; invisible characters explained by text not colour; live regions; the chart's text alternative; 200% and 400% zoom without horizontal scroll; a 360px viewport; light and dark contrast; and `prefers-reduced-motion` suppressing all animation. |
+| `e2e/panels.spec.js` | Clear on every panel that has one, Reset restoring every panel, all four invisible carriers end to end with auto-detection, the word-choice panel round-tripping in the browser while the X-ray reports the result clean, and the encrypted path reporting authentication. |
+| `e2e/a11y.spec.js` | axe-core over WCAG 2.0/2.1 A and AA rule tags, failing on serious and critical violations, before and after every panel has produced output — including the word-choice panel, the only carrier whose output is visible prose, whose marks are asserted to be explained by visible text rather than by colour, underline shape or a `title` attribute; full tab-order walk asserting visible focus on every control; keyboard-only operation; invisible characters explained by text not colour; live regions; the chart's text alternative; 200% and 400% zoom without horizontal scroll; a 360px viewport; light and dark contrast; and `prefers-reduced-motion` suppressing all animation. |
 | `e2e/pwa.spec.js` | Manifest completeness with every icon fetched, the whole exhibit working with the network cut, a content-derived cache name, and a stale cache generation being evicted rather than stranding the user. |
 
-216 browser tests — 72 per engine across Chromium, Firefox and WebKit, all three
+231 browser tests — 77 per engine across Chromium, Firefox and WebKit, all three
 run in CI on every push and pull request. The offline and service-worker tests
 skip outside Chromium, and WebKit's keyboard-reachability floor differs because
 Safari's Tab default does — both are recorded in
@@ -235,14 +251,16 @@ CI builds or tests the native shells.
 ```
 index.html                    markup only — no inline script, style or handlers
 app.css                       all styles, including the local font stacks
-app.js                        all behaviour, including the taxonomy that drives
-                              the layer nav, the matrix and the per-card boundaries
+app.js                        all behaviour, including the synonym codebook and
+                              the taxonomy that drives the layer nav, the matrix
+                              and the per-card boundaries
 sw.js                         service worker; cache name injected by the build
 build.mjs                     assembles dist/, computes the CSP hash and cache name
 manifest.webmanifest          PWA manifest
 icons/                        app icons
 docs/                         threat model, container spec, references, known gaps
-test/                         node suites + the codec slice helper + a static server
+test/                         node suites + the codec slice helper + a static
+                              server + fixtures/ for the independent decoder
 e2e/                          Playwright suites
 .github/workflows/pages.yml   unit → browser matrix → deploy dist/
 .github/dependabot.yml        weekly npm and actions updates

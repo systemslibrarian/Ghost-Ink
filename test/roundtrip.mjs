@@ -5,6 +5,7 @@
  * file is the one that says so.
  */
 import { webcrypto as crypto } from "node:crypto";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 
 const enc = new TextEncoder(), dec = new TextDecoder();
@@ -152,6 +153,67 @@ for (const secret of secrets) {
 {
   const v1 = Uint8Array.from([1, 0, ...enc.encode("written before v2")]);
   assert.equal(await unpack(v1, null), "written before v2", "[5] v1 plaintext");
+  pass += 1;
+}
+
+/* ---- carrier: word choice, decoded independently ----
+ *
+ * The codebook is *data*, not logic: a second implementation of this carrier
+ * still has to agree with the same word groups, exactly as a second
+ * implementation of the Tags carrier has to agree on U+E0000. So the groups are
+ * read out of app.js as text and the decoder below is written fresh from the
+ * rule — rank of the word within its group, most significant bit first, groups
+ * sized 2^k — without importing a line of the application.
+ */
+const lexGroups = (() => {
+  const src = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  const block = src.slice(src.indexOf("const LEX_GROUPS = ["), src.indexOf("const LEX_INDEX"));
+  return [...block.matchAll(/\[((?:"[a-z]+",?\s*)+)\]/g)]
+    .map((m) => m[1].match(/[a-z]+/g));
+})();
+
+const lexRank = new Map();
+lexGroups.forEach((g) => g.forEach((w, i) => lexRank.set(w, { rank: i, bits: Math.log2(g.length) })));
+
+function lexDecodeIndependently(text) {
+  const bits = [];
+  for (const w of text.match(/[A-Za-z]+/g) || []) {
+    const e = lexRank.get(w.toLowerCase());
+    if (!e) continue;
+    for (let k = e.bits - 1; k >= 0; k--) bits.push((e.rank >> k) & 1);
+  }
+  const bytes = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(bits.slice(i, i + 8).reduce((a, b) => (a << 1) | b, 0));
+  }
+  const all = Uint8Array.from(bytes);
+  if (all.length < HDR || !MAGIC.every((m, i) => all[i] === m)) return null;
+  // the container declares its own length; everything past it is arbitrary
+  const total = HDR + all[11] + all[12] + rd32(all, 13);
+  return total <= all.length ? all.slice(0, total) : null;
+}
+
+// (6) the word-choice carrier decodes under a second implementation
+{
+  assert.ok(lexGroups.length > 20, "[6] the codebook parsed out of app.js");
+  for (const g of lexGroups) {
+    assert.ok(Number.isInteger(Math.log2(g.length)), `[6] group [${g[0]}…] is not sized 2^k`);
+  }
+  pass += 1;
+
+  /* The application produced these two strings with the shipped encoder; if the
+   * two implementations ever disagree about rank order, bit order or where the
+   * payload stops, this decode fails. Regenerating them requires the app, which
+   * is the point — this file only ever reads. */
+  const fixture = readFileSync(new URL("./fixtures/lex.txt", import.meta.url), "utf8");
+  const bytes = lexDecodeIndependently(fixture);
+  assert.ok(bytes, "[6] the fixture must decode to a container");
+  assert.equal(await unpack(bytes, null), "meet at nine", "[6] independent lexical decode");
+  pass += 2;
+
+  // and prose that was never substituted must not decode to a container
+  assert.equal(lexDecodeIndependently("Thanks for the update, talk soon."), null,
+    "[6] unsubstituted text must not yield a container");
   pass += 1;
 }
 

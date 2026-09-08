@@ -50,6 +50,30 @@ page says so rather than borrowing authority from a secondary one.
 * **Rust compiler lint** for bidi codepoints in literals, and the equivalent
   responses in other toolchains.
 
+## Linguistic steganography
+
+The sources behind the word-choice carrier. Each was checked against its primary
+source before it was listed here.
+
+* Krista Bennett, **“Linguistic Steganography: Survey, Analysis, and Robustness
+  Concerns for Hiding Information in Text”**, CERIAS Tech Report 2004-13, Purdue
+  University —
+  <https://www.cerias.purdue.edu/assets/pdf/bibtex_archive/2004-13.pdf>. The
+  survey that frames the field, and the reason the word-choice carrier is filed
+  as its own layer here rather than as another encoding trick: it separates
+  approaches that *modify* an existing cover from approaches that *generate* one.
+* Keith Winstein, **“Lexical Steganography Through Adaptive Modulation of the Word
+  Choice Hash”** (1998) — <http://web.mit.edu/keithw/tlex/>. The direct ancestor
+  of the carrier implemented here: bits are carried by which member of a set of
+  interchangeable words appears. Ghost Ink reimplements the *idea* with a small
+  hand-built codebook, not Winstein's hash construction or his thesaurus.
+* Mark Chapman and George Davida, **“Hiding the Hidden: A Software System for
+  Concealing Ciphertext as Innocuous Text”** (NICETEXT), ICICS 1997, pp. 335–345 —
+  <https://link.springer.com/chapter/10.1007/BFb0028489>. The generation-based
+  cousin: rather than substituting words in a cover, it *produces* cover text from
+  dictionaries and sentence templates. **Nothing here is taken from it**; it is
+  cited to mark the boundary of what this page does not do.
+
 ## Secondary reporting
 
 * Dan Goodin, **“Once popular for attacking AI, ASCII smuggling is embraced by
@@ -67,7 +91,9 @@ page says so rather than borrowing authority from a secondary one.
   emoji carrier, which is what the emoji panel demonstrates.
 * **Meteor** (Kaptchuk et al.) and arithmetic-coding steganography over language
   models — provably-secure linguistic stego, named on the page as something it
-  deliberately does *not* implement.
+  deliberately does *not* implement. The word-choice carrier that *is* implemented
+  is the codebook-driven kind (see **Linguistic steganography** above); it needs no
+  model, and it makes none of the security claims that the model-based schemes do.
 * **SynthID-Text** (Google DeepMind) and green-list watermarking (Kirchenbauer et
   al.) — watermarking generated text rather than smuggling into it.
 

@@ -45,13 +45,53 @@ const eq = (a, b, m) => { assert.deepEqual(a, b, m); n++; };
 // ---------- counts are derived, never typed twice ----------
 {
   const carriers = Object.keys(M.CARRIERS);
-  eq(carriers.length, 4, "four carriers are implemented");
+  /* No magic number here on purpose: the count is derived from the code and
+     cross-checked against the UI and the README below, which is what actually
+     catches drift. A literal would only have to be edited alongside them. */
+  ok(carriers.length >= 4, "the carriers are enumerable from the code");
   // The README states the count in words; it must match the code.
   const WORDS = { 1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six" };
   const claimed = readme.match(/\b(one|two|three|four|five|six) carriers?\b/gi) || [];
   for (const c of claimed) {
     ok(c.toLowerCase().startsWith(WORDS[carriers.length]),
        `README says "${c}" but ${carriers.length} carriers are implemented`);
+  }
+  /* The blind spot must stay deliberate. A cover-bound carrier cannot be named
+     from the text alone, so extractPayload skips it; if that skip were ever
+     removed, auto-detection would start guessing. */
+  for (const key of carriers) {
+    if (!M.CARRIERS[key].coverBound) continue;
+    ok(typeof M.CARRIERS[key].encodeInto === "function" && typeof M.CARRIERS[key].capacity === "function",
+       `cover-bound carrier "${key}" must expose encodeInto() and capacity()`);
+    ok(app.includes("if (C.coverBound) continue;"),
+       "extractPayload must skip cover-bound carriers rather than guessing at them");
+  }
+  /* Structural guard on the heterogeneous interface. A cover-bound carrier has no
+     encode()/cost(), so ANY site that iterates the registry and calls those
+     generically is a latent crash. Spot the Ghost was exactly that bug. Rather
+     than trusting a one-time audit, every `Object.keys(CARRIERS)` in the app must
+     have a coverBound guard within reach of it. */
+  {
+    const sites = [...app.matchAll(/Object\.keys\(CARRIERS\)/g)].map((m) => m.index);
+    ok(sites.length > 0, "the carrier registry is iterated somewhere");
+    for (const at of sites) {
+      const window = app.slice(at, at + 500);
+      ok(/coverBound/.test(window),
+         `a carrier-registry iteration at offset ${at} has no coverBound guard near it:\n` +
+         app.slice(at, at + 120));
+    }
+    // and the interface split itself must hold, so a generic call fails loudly
+    for (const key of carriers) {
+      const C = M.CARRIERS[key];
+      if (C.coverBound) {
+        ok(typeof C.encode !== "function" && typeof C.cost !== "function",
+           `cover-bound carrier "${key}" must NOT expose encode()/cost() — a generic caller must throw, not silently misbehave`);
+      } else {
+        ok(typeof C.encode === "function" && typeof C.cost === "function" &&
+           typeof C.decode === "function" && typeof C.count === "function",
+           `invisible carrier "${key}" is missing part of the insert-only interface`);
+      }
+    }
   }
   // Every carrier must have a radio in the UI, and vice versa.
   const radios = [...html.matchAll(/name="carrier" value="([a-z]+)"/g)].map((m) => m[1]);
@@ -94,6 +134,44 @@ const eq = (a, b, m) => { assert.deepEqual(a, b, m); n++; };
   for (const t of techIds) {
     ok(tagged.has(t.id), `technique "${t.id}" is in the taxonomy but no card demonstrates it`);
   }
+  // every detector a technique names must be one DETECTORS defines, or the
+  // "detection boundary" line on the card renders as undefined
+  const detBlock = src.slice(src.indexOf("const DETECTORS"), src.indexOf("const TECHNIQUES"));
+  const detIds = [...detBlock.matchAll(/^\s{4}([a-z]+):/gm)].map((m) => m[1]);
+  ok(detIds.length >= 8, "at least eight classes of inspection are named");
+  for (const m of src.matchAll(/(caught|missed):\[([^\]]*)\]/g)) {
+    for (const raw of m[2].split(",")) {
+      const id = raw.trim().replace(/^"|"$/g, "");
+      if (id) ok(detIds.includes(id), `taxonomy names detector "${id}", which DETECTORS does not define`);
+    }
+  }
+  // every layer must have at least one technique in it, or the nav renders an
+  // empty section
+  for (const l of layerIds) {
+    ok(techIds.some((t) => t.layer === l), `layer "${l}" has no technique in it`);
+  }
+}
+
+// ---------- the matrix commentary must match the matrix ----------
+{
+  /* The page tells the reader how many techniques the codepoint scan catches.
+     That sentence shipped inverted once — it claimed six caught and four missed
+     when the table it describes rendered four and six — so the numbers are
+     derived from the taxonomy here rather than trusted. */
+  const block = app.slice(app.indexOf("const TECHNIQUES = ["), app.indexOf("HERO"));
+  const techs = [...block.matchAll(/\{id:"([a-z]+)",[\s\S]*?caught:\[([^\]]*)\]/g)];
+  ok(techs.length >= 10, "the technique list parses for the coverage count");
+  const caught = techs.filter((m) => m[2].includes('"codepoint"')).length;
+  const missed = techs.length - caught;
+  const WORD = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"];
+  const claim = html.match(/codepoint scan[\s\S]{0,900}?<\/p>/i);
+  ok(claim, "the matrix commentary paragraph is present");
+  ok(new RegExp(`catches\\s*(<b>)?${WORD[caught]}(</b>)?\\b`, "i").test(claim[0]),
+     `the page must say the codepoint scan catches ${WORD[caught]} techniques`);
+  ok(new RegExp(`blind to the other\\s*(<b>)?${WORD[missed]}(</b>)?\\b`, "i").test(claim[0]),
+     `the page must say it is blind to the other ${WORD[missed]}`);
+  ok(new RegExp(`\\b${WORD[techs.length]}\\s+techniques\\b`, "i").test(claim[0]),
+     `the page must say there are ${WORD[techs.length]} techniques`);
 }
 
 // ---------- the page wires up cleanly ----------

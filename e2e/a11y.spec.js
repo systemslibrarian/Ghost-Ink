@@ -22,7 +22,10 @@ test("no axe violations after every panel has produced output", async ({ page })
   await page.goto("/index.html");
   for (const id of ["#revealBtn", "#hideBtn", "#hideRevealBtn", "#hideWorkBtn", "#inspectBtn",
                     "#gameCheck", "#mevBtn", "#survCheck", "#wmStamp", "#emBtn", "#hfBtn",
-                    "#tsEx1", "#scrEx1", "#pjReveal", "#nzEx1", "#imgHide"]) {
+                    "#tsEx1", "#scrEx1", "#pjReveal", "#nzEx1", "#imgHide",
+                    // the word-choice panel is the one carrier whose output is
+                    // visible prose, and it must be in the tree axe walks
+                    "#lexHide", "#lexMark", "#lexFind"]) {
     await page.click(id).catch(() => {});
   }
   // The scraper panel's sandbox has no script capability by design, so axe cannot
@@ -93,6 +96,52 @@ test("invisible characters are explained by text, not by colour alone", async ({
   // and the legend spells out the category names
   await expect(page.locator("#inspectLegend")).toContainText("Zero-width");
   await expect(page.locator("#inspectStat")).not.toHaveText("");
+});
+
+/* The test above covers the *invisible* carriers, whose output is chips in the
+ * Inspect panel. Word choice is the exhibit's only carrier whose output is
+ * ordinary readable prose, so the thing being marked is a real word rather than
+ * an absent character — a different a11y problem, and one the Inspect-panel
+ * assertions never touch. */
+test("substituted words are explained by text, not by colour or a tooltip", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.fill("#lexSecret", "meet at nine");
+  await page.click("#lexHide");
+  await page.click("#lexMark");
+
+  const chips = page.locator("#lexOut .chip.lex");
+  expect(await chips.count(), "the marked view produced marks").toBeGreaterThan(0);
+
+  // the mark must not eat the word: a substituted word still reads as that word
+  for (const text of (await chips.allTextContents()).slice(0, 10)) {
+    expect(text.trim(), "a marked chip still carries its word").toMatch(/^[A-Za-z]+$/);
+  }
+  // and no chip may hide its meaning behind an aria-label that replaces the word
+  const labelled = await page.locator("#lexOut .chip.lex[aria-label]").count();
+  expect(labelled, "a chip must not substitute a description for the word").toBe(0);
+
+  /* The load-bearing part: what a mark MEANS is stated in visible text, not left
+     to the colour, the underline shape, or the title attribute — none of which a
+     screen-reader or keyboard user receives. */
+  const note = page.locator("#lexOut .lex-legend");
+  await expect(note).toBeVisible();
+  await expect(note).toContainText("substituted");
+  expect((await note.textContent()).trim().length).toBeGreaterThan(40);
+
+  // the chip is distinguished by more than hue: a border and a doubled underline
+  const style = await chips.first().evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { bw: s.borderBottomWidth, bs: s.borderBottomStyle, w: s.borderTopWidth };
+  });
+  expect(style.bs, "the mark carries a non-colour cue").toBe("double");
+  expect(parseFloat(style.bw)).toBeGreaterThan(1);
+
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .include("#lex-card")
+    .analyze();
+  const bad = results.violations.filter((v) => ["serious", "critical"].includes(v.impact));
+  expect(bad.map((v) => `${v.id} (${v.nodes.length}) — ${v.help}`)).toEqual([]);
 });
 
 test("live regions announce the panels that update in place", async ({ page }) => {

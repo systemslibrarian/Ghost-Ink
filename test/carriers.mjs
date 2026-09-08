@@ -1,19 +1,46 @@
 /* Carrier tests. Unlike roundtrip.mjs — which is a deliberately independent
  * re-implementation — this suite exercises the page's OWN codec, sliced out of
- * app.js by test/lib/slice.mjs, so all four carriers (Unicode Tags, variation
- * selectors, zero-width, trailing whitespace) are checked exactly as shipped.
+ * app.js by test/lib/slice.mjs, so every carrier (Unicode Tags, variation
+ * selectors, zero-width, trailing whitespace, word choice) is checked exactly
+ * as shipped.
+ *
+ * Word choice is cover-bound: it rewrites the cover instead of riding alongside
+ * it, so it has no fixed cost per byte, it is not woven, and — by design — the
+ * auto-detector cannot find it. Each loop below states which of those it means.
  */
 import assert from "node:assert/strict";
 import { loadCodec } from "./lib/slice.mjs";
 
 const M = loadCodec();
 
+/* The cover-bound carrier needs a great deal of cover — that is the honest
+ * headline cost of linguistic stego, not a defect of the test. This sentence
+ * contains a coding point from many groups; repeating it gives a cover with
+ * enough capacity for the encrypted path (61+ bytes) as well as the plain one. */
+const LEX_UNIT = "The big problem is that we should begin to check the new method often, " +
+  "show the result, help the group choose an approach, and finish the important work quickly; " +
+  "however the hidden idea is a small message about which words we use, and therefore " +
+  "we can also explain, build, verify, remove or change nearly any usual thing here. ";
+const lexCover = (bits) => {
+  let c = LEX_UNIT;
+  while (M.CARRIERS.lex.capacity(c).bits < bits) c += LEX_UNIT;
+  /* Trimmed deliberately: a cover ending in a space would leave a one-character
+   * trailing run, which extractPayload reports as SNOW-shaped noise. That is
+   * pre-existing behaviour of the whitespace carrier and has nothing to do with
+   * this one, so the blind-spot assertions below must not be testing it. */
+  return c.trim();
+};
+
+const INVISIBLE = Object.keys(M.CARRIERS).filter((k) => !M.CARRIERS[k].coverBound);
+const COVER_BOUND = Object.keys(M.CARRIERS).filter((k) => M.CARRIERS[k].coverBound);
+
 let n = 0;
+const n2 = () => { n++; };
 const ok = (c, m) => { assert.ok(c, m); n++; };
 const eq = (a, b, m) => { assert.deepEqual(a, b, m); n++; };
 
-// --- every carrier round-trips arbitrary bytes ---
-for (const key of Object.keys(M.CARRIERS)) {
+// --- every invisible carrier round-trips arbitrary bytes ---
+for (const key of INVISIBLE) {
   const C = M.CARRIERS[key];
   for (const secret of ["meet at the north gate, 9pm", "emoji 🎯 ✓", "$5M / 60% — a+b", "x"]) {
     const bytes = M.packPlain(secret);
@@ -30,9 +57,9 @@ for (const key of Object.keys(M.CARRIERS)) {
   }
 }
 
-// --- carriers survive weaving, in both placements ---
+// --- carriers survive weaving, in both placements (weave is not cover-bound) ---
 const cover = "Thanks for the update — talk soon.";
-for (const key of Object.keys(M.CARRIERS)) {
+for (const key of INVISIBLE) {
   // an appendOnly carrier lives in the trailing whitespace; scattering it would
   // both destroy the payload and be plainly visible, so the page forbids it
   const modes = M.CARRIERS[key].appendOnly ? ["append"] : ["append", "scatter"];
@@ -47,8 +74,8 @@ for (const key of Object.keys(M.CARRIERS)) {
   }
 }
 
-// --- encrypted payloads work on every carrier ---
-for (const key of Object.keys(M.CARRIERS)) {
+// --- encrypted payloads work on every invisible carrier ---
+for (const key of INVISIBLE) {
   const bytes = await M.packEnc("classified", "correct horse");
   const stego = M.weave(cover, M.CARRIERS[key].encode(bytes), M.CARRIERS[key].appendOnly ? "append" : "scatter");
   const found = M.extractPayload(stego);
@@ -86,6 +113,188 @@ eq(M.extractPayload("nothing hidden here at all"), null, "clean text must report
   ok(spoofed !== "apple-support.com", "confusables: the impostor is a different string");
   eq(M.skeleton(spoofed), "apple-support.com", "confusables: skeleton folds to ASCII");
   eq(M.skeleton("ordinary text"), "ordinary text", "confusables: clean text is left alone");
+}
+
+// --- the cover-bound carrier: word choice ---
+{
+  ok(COVER_BOUND.length >= 1, "at least one cover-bound carrier is implemented");
+  ok(!COVER_BOUND.some((k) => typeof M.CARRIERS[k].cost === "function"),
+     "a cover-bound carrier must not advertise a fixed cost per byte");
+}
+for (const key of COVER_BOUND) {
+  const C = M.CARRIERS[key];
+
+  // round trip, plain, across payloads that exercise multi-byte UTF-8
+  for (const secret of ["meet at nine", "emoji 🎯 ✓", "$5M / 60% — a+b", "x"]) {
+    const bytes = M.packPlain(secret);
+    const cv = lexCover(bytes.length * 8);
+    const stego = C.encodeInto(bytes, cv);
+    eq([...C.decode(stego)], [...bytes], `${key}: byte round trip`);
+    eq((await M.unpack(C.decode(stego), null)).text, secret, `${key}: text round trip`);
+  }
+
+  // round trip, encrypted — the container is carrier-independent, so AES-GCM
+  // has to survive this carrier exactly as it survives the invisible ones
+  {
+    const bytes = await M.packEnc("classified", "correct horse");
+    const cv = lexCover(bytes.length * 8);
+    const stego = C.encodeInto(bytes, cv);
+    const back = C.decode(stego);
+    ok(M.peek(back).encrypted, `${key}: peek missed the encryption flag`);
+    eq((await M.unpack(back, "correct horse")).text, "classified", `${key}: encrypted round trip`);
+    await assert.rejects(() => M.unpack(back, "wrong"), `${key}: wrong passphrase must throw`); n++;
+  }
+
+  // capacity accounting: the advertised capacity must be what encoding can use,
+  // and it is a property of the cover rather than of the payload
+  {
+    const cv = lexCover(400);
+    const cap = C.capacity(cv);
+    eq(cap.bytes, Math.floor(cap.bits / 8), `${key}: capacity bytes disagree with bits`);
+    ok(cap.points > 0 && cap.bits >= cap.points, `${key}: every coding point carries at least one bit`);
+    // a payload of exactly the advertised size must fit; one byte more must not
+    const fits = M.packPlain("x".repeat(Math.max(0, cap.bytes - 21)));
+    ok(fits.length <= cap.bytes, `${key}: test payload exceeds advertised capacity`);
+    C.encodeInto(fits, cv); n++;
+    // adding cover only ever adds capacity
+    ok(C.capacity(cv + cv).bits > cap.bits, `${key}: more cover must mean more capacity`);
+  }
+
+  // fail closed when the cover is too short — the common case for this carrier
+  {
+    const bytes = M.packPlain("hi");
+    assert.throws(() => C.encodeInto(bytes, "Thanks for the update — talk soon."),
+      (e) => e && e.code === "capacity", `${key}: must fail closed on insufficient cover`); n++;
+    assert.throws(() => C.encodeInto(bytes, ""), (e) => e && e.code === "capacity",
+      `${key}: an empty cover carries nothing`); n++;
+  }
+
+  // the visible text is the payload: unlike every other carrier, it changes
+  {
+    const cv = lexCover(200);
+    const stego = C.encodeInto(M.packPlain("hi"), cv);
+    ok(stego !== cv, `${key}: the cover must actually change — that is the carrier`);
+    eq(stego.replace(/[A-Za-z]+/g, ""), cv.replace(/[A-Za-z]+/g, ""),
+       `${key}: only whole words may change; punctuation and spacing must be untouched`);
+  }
+
+  // THE BLIND SPOT, asserted rather than assumed — the whole reason this
+  // carrier is in the exhibit. Every codepoint is ordinary, so the codepoint
+  // X-ray finds nothing, the positional whitespace pass finds nothing, and
+  // auto-detection cannot name the carrier from the text alone.
+  {
+    const cv = lexCover(200);
+    const stego = C.encodeInto(M.packPlain("hi"), cv);
+    ok([...stego].every((ch) => M.classify(ch.codePointAt(0)) === null),
+       `${key}: a codepoint detector must see nothing at all here`);
+    ok(!/[ \t]{4,}$/.test(stego), `${key}: nothing for the positional whitespace pass to find either`);
+    ok([...stego].every((ch) => M.CONFUSABLE[ch] === undefined),
+       `${key}: no look-alike for the confusable pass to catch`);
+    eq(M.extractPayload(stego), null, `${key}: auto-detection must not find a cover-bound carrier`);
+    // and yet, with the codebook, it decodes
+    eq((await M.unpack(C.decode(stego), null)).text, "hi", `${key}: decodes with the codebook`);
+  }
+
+  // decoding refuses text that was never written with the codebook
+  {
+    eq(C.decode("Thanks for the update — talk soon."), null, `${key}: short text yields no container`);
+    eq(C.decode(lexCover(400)), null, `${key}: unsubstituted prose is not a container`);
+  }
+
+  // case is preserved, so the prose is not visibly mangled
+  {
+    const cv = "BIG " + lexCover(200);
+    const stego = C.encodeInto(M.packPlain("hi"), cv);
+    const firstWord = stego.match(/[A-Za-z]+/)[0];
+    eq(firstWord, firstWord.toUpperCase(), `${key}: an all-caps coding point must stay all-caps`);
+  }
+}
+
+/* --- the cover-bound decoder trusts the container's declared length ---
+ *
+ * Every other carrier knows where its payload stops because the carrier
+ * characters stop. This one does not: coding points carry on to the end of the
+ * cover, so lexDecode reads the declared salt/nonce/payload lengths out of the
+ * header and truncates to them. That is only safe because the header is either
+ * GCM-authenticated or CRC-framed — so corrupting the declared length must fail
+ * closed rather than yield a short read that decodes to something.
+ */
+for (const key of COVER_BOUND) {
+  const C = M.CARRIERS[key];
+  const reEncode = (bytes) => C.encodeInto(bytes, lexCover(bytes.length * 8 + 64));
+
+  // plaintext: the CRC is computed over the body, so a shortened payload is a
+  // framing mismatch, and a lengthened one runs past what the cover can hold
+  {
+    const good = M.packPlain("meet at nine");
+    eq((await M.unpack(C.decode(reEncode(good)), null)).text, "meet at nine",
+       `${key}: the untampered record decodes, so the tamper cases mean something`);
+
+    for (const delta of [-1, -4, +1]) {
+      const bad = Uint8Array.from(good);
+      const declared = 13;                                 // payload length, big-endian, per docs/CONTAINER.md
+      const n = ((bad[declared] << 24) | (bad[declared+1] << 16) | (bad[declared+2] << 8) | bad[declared+3]) + delta;
+      bad[declared] = (n >>> 24) & 255; bad[declared+1] = (n >>> 16) & 255;
+      bad[declared+2] = (n >>> 8) & 255; bad[declared+3] = n & 255;
+
+      const back = C.decode(reEncode(bad));
+      if (back === null) { ok(true, `${key}: declared length ${delta} refused at decode`); continue; }
+      await assert.rejects(() => M.unpack(back, null),
+        `${key}: plaintext with declared length ${delta} must fail closed`); n2();
+    }
+  }
+
+  // the salt and nonce lengths are read straight out of the header by the
+  // truncation too, so they get the same treatment
+  {
+    const good = M.packPlain("meet at nine");
+    for (const off of [11, 12]) {
+      const bad = Uint8Array.from(good); bad[off] ^= 0x10;
+      const back = C.decode(reEncode(bad));
+      if (back === null) { ok(true, `${key}: byte ${off} refused at decode`); continue; }
+      await assert.rejects(() => M.unpack(back, null),
+        `${key}: plaintext with byte ${off} tampered must fail closed`); n2();
+    }
+  }
+
+  // encrypted: the entire header is associated data, so any change to a declared
+  // length breaks authentication rather than producing a short plaintext
+  {
+    const good = await M.packEnc("classified", "correct horse");
+    eq((await M.unpack(C.decode(reEncode(good)), "correct horse")).text, "classified",
+       `${key}: the untampered encrypted record decodes`);
+
+    for (const off of [11, 12, 13, 14, 15, 16]) {
+      const bad = Uint8Array.from(good); bad[off] ^= 1;
+      const back = C.decode(reEncode(bad));
+      if (back === null) { ok(true, `${key}: encrypted header byte ${off} refused at decode`); continue; }
+      await assert.rejects(() => M.unpack(back, "correct horse"),
+        `${key}: encrypted with header byte ${off} tampered must fail closed`); n2();
+    }
+  }
+
+  // and a record whose declared length exceeds everything the cover could carry
+  // is refused outright rather than read short
+  {
+    const good = M.packPlain("hi");
+    const bad = Uint8Array.from(good);
+    bad[13] = 0x7F; bad[14] = 0xFF; bad[15] = 0xFF; bad[16] = 0xFF;   // absurd payload length
+    eq(C.decode(reEncode(bad)), null, `${key}: an impossible declared length is refused`);
+  }
+}
+
+// --- the codebook itself ---
+{
+  ok(M.LEX_GROUPS.length > 20, "the codebook has enough groups to be usable");
+  const seen = new Set();
+  for (const g of M.LEX_GROUPS) {
+    ok(Number.isInteger(Math.log2(g.length)) && g.length >= 2, `group [${g[0]}…] is not sized 2^k`);
+    for (const w of g) {
+      ok(/^[a-z]+$/.test(w), `codebook word “${w}” is not plain lowercase letters`);
+      ok(!seen.has(w), `codebook word “${w}” appears in more than one group — decoding would be ambiguous`);
+      seen.add(w);
+    }
+  }
 }
 
 console.log(`ok — ${n} assertions passed`);

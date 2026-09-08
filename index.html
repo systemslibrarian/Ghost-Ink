@@ -99,6 +99,7 @@
         <label><input type="radio" name="carrier" value="vs"> Variation selectors</label>
         <label><input type="radio" name="carrier" value="zw"> Zero-width</label>
         <label><input type="radio" name="carrier" value="snow"> Trailing whitespace</label>
+        <label><input type="radio" name="carrier" value="lex"> Word choice</label>
       </div>
       <div class="carrier-note" id="carrierNote"></div>
       <div class="actions">
@@ -424,13 +425,67 @@
         <div class="out empty" id="imgOut">Hide something, then read it back out of the pixels.</div>
       </div>
 
+      <div class="card span" id="lex-card" data-technique="lex">
+        <h3>The message is in which word was chosen</h3>
+        <div class="hint">Every other carrier on this page hides bytes in characters you cannot see. This one hides them in <em>vocabulary</em>. A codebook groups interchangeable words &mdash; <span class="k">big / large / sizable / substantial</span> &mdash; into ordered sets of two or four, and the rank of the word that actually appears carries one or two bits. Nothing is invisible, nothing is unusual, and the visible text genuinely changes. That is the trade: the X&#8209;ray above cannot see this at all, but a careful reader might notice the prose has been rewritten.</div>
+        <div class="hint">The cost is severe and it is the honest lesson here. A payload needs the whole container, so a two&#8209;character secret needs 184 bits &mdash; and this cover of nearly seven hundred words carries only a few hundred. Linguistic stego buys total invisibility with terrible capacity.</div>
+        <div class="field-block">
+          <label class="lab" for="lexCover">Cover text (the codebook words in it are the coding points)</label>
+          <textarea id="lexCover" rows="10">Notes from the review, circulated to the whole group. Thanks to everyone who made time for it.
+
+The first thing to say is that the new approach is clear enough, and the result is a big improvement over the method we used last quarter. We can show that the number of failures has dropped, and the outcome is easy to explain: we check every change before it lands, and we always confirm the build after it. That is the whole idea, and it seems to work.
+
+There is still a problem, however, and it is important. The way we keep records of each release is quite odd. Many of the notes are hidden in places nobody can locate, and a person joining the team would find it very hard to obtain a real picture of what happened. We should therefore build a simple index, keep it near the release notes, and use it to give every reader a clear place to start.
+
+The next issue concerns time. Reviews often take about a week, because we ask for changes and then wait. Maybe we can reduce that. One idea is to select a smaller group of reviewers for minor changes, and to allow the whole team to help only on the large ones. Another is to remove the second sign-off entirely for anything under a modest threshold. Both would make the process faster, though neither is free.
+
+I also think we should present the numbers more often. If the result of each release is displayed in one place, and the count of open problems is always visible, people can find the trouble spots without asking. That is a small change and it provides a great deal.
+
+Last thing. The old tooling is still in use in a few places, and it is a genuine risk. We should modify the remaining scripts, verify them, and then delete the old ones. It is not hard work, but it is easy to keep putting it off, and the consequence of leaving it is that the next person has to do it under pressure.
+
+Please tell me if any part of this seems wrong. I will finish the write-up after the next review, and I would very much like to confirm the plan before then.
+
+A second note, because the first was already long. The important thing is that we begin, not that we finish quickly. If we start small and show the result often, the problem stops being strange and becomes ordinary work. That is usually how these changes go.
+
+We should also explain the method to the wider group. A short message helps: what changed, why it is important, and what people should check before they build. If the message is clear, the number of questions drops, and the result is that we reduce the time spent on support rather than increase it.
+
+The last idea is a small one. We often remove old scripts and then find that some hidden dependency is still using them. A quick check before we delete anything would help. It is a modest change, but the consequence of skipping it is a strange failure late in the release, and those are always hard to explain.
+
+I think we should choose two of these and finish them this quarter, rather than begin all four and complete none. The usual outcome of a big list is that the important items are the ones we never reach. So: pick the small ones, show the result, and let the group help with the rest.
+
+If any of this seems wrong, tell me. It is easier to change the approach now than after we build the thing. I would rather we check the idea early, confirm what we can, and then start.
+
+One more small thing, and then I will stop. The build often fails for a strange reason that turns out to be a minor change nobody thought was important. If we show the whole result of each check, rather than the last line, the problem is usually easy to locate. It is a very quick change and it would help a great deal.</textarea>
+        </div>
+        <div class="field-block">
+          <label class="lab" for="lexSecret">Secret message</label>
+          <textarea id="lexSecret">meet at nine</textarea>
+        </div>
+        <div class="carrier-note" id="lexCap"></div>
+        <div class="actions">
+          <button class="act" id="lexHide">Hide it in the wording</button>
+          <button class="act ghost" id="lexMark" hidden>Mark the swapped words</button>
+          <button class="act ghost" id="lexXray" hidden>Send it to the X&#8209;ray</button>
+          <button class="act ghost" id="lexClear" title="Clear this panel">Clear</button>
+        </div>
+        <div class="out empty" id="lexOut">The rewritten cover appears here. It will read almost the same and contain no unusual character at all.</div>
+        <div class="field-block">
+          <label class="lab" for="lexIn">Read it back (paste substituted text &mdash; the codebook is the key)</label>
+          <textarea id="lexIn" placeholder="Paste the rewritten text here…"></textarea>
+        </div>
+        <div class="actions">
+          <button class="act" id="lexFind">Read it back</button>
+        </div>
+        <div class="out empty" id="lexFindOut">Decoding needs the codebook. Nothing in the text says which words are carrying.</div>
+      </div>
+
     </div>
   </section>
 
   <!-- COMPARISON MATRIX -->
   <section class="section" id="matrix-section">
     <h2>One table, every technique</h2>
-    <p>The column that matters is the sixth. A codepoint scan — the detector this page implements in <a href="#inspect-panel">Inspect &amp; clean</a>, and the one most real filters implement — catches six of the ten techniques here and is structurally blind to the other four. Not because it is badly written, but because they do not live at the layer it inspects.</p>
+    <p>The column that matters is the sixth. A codepoint scan — the detector this page implements in <a href="#inspect-panel">Inspect &amp; clean</a>, and the one most real filters implement — catches <b>four</b> of the eleven techniques here and is structurally blind to the other <b>seven</b>. Not because it is badly written, but because they do not live at the layer it inspects. The newest of the seven, <a href="#lex-card">word choice</a>, is the starkest: it emits no unusual character at all, so there is not even a candidate for the scan to weigh.</p>
     <div class="matrix-wrap" id="matrix" tabindex="0" role="region" aria-label="Comparison of every technique demonstrated, scrollable"></div>
     <p class="u-note">Survivability is a general expectation, not a measurement. The <a href="#surv-card">survivability lab</a> is there so you can measure the paths you actually care about instead of trusting this column.</p>
   </section>

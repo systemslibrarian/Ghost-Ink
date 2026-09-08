@@ -12,12 +12,32 @@ The single most important distinction in this project:
 | --- | --- | --- |
 | **Confidentiality of the message** | AES-256-GCM with a key derived from your passphrase by PBKDF2-SHA256 | Real. As strong as the passphrase. |
 | **Concealment of the message's existence** | Invisible Unicode characters | Not a security property at all. |
+| **Concealment, word-choice carrier only** | The codebook, which is published in `app.js` | Not a security property either — and the codebook is not secret. |
 
 Encrypting the payload protects *what it says*. Nothing here protects *that it is
-there*. The Inspect panel on this page finds any of the text carriers in a single
-pass, Microsoft ships a signature for the Tags carrier in Defender for Office, and
-VS Code highlights invisible characters by default. Treat the presence of a
-payload as public.
+there*. The Inspect panel on this page finds any of the *invisible* text carriers
+in a single pass, Microsoft ships a signature for the Tags carrier in Defender for
+Office, and VS Code highlights invisible characters by default. Treat the presence
+of a payload as public.
+
+**The word-choice carrier is the one deliberate exception, and it is a narrower
+one than it first appears.** It defeats representation-layer inspection
+completely: every codepoint it emits is ordinary ASCII, so the codepoint X-ray,
+the positional whitespace pass and the confusable pass are all structurally blind
+to it, and nothing survives-in-transit strips it. What still catches it:
+
+* **Possession of the codebook.** It ships in `app.js`, in the clear, and decoding
+  with it is trivial. This is not a key and must never be treated as one — Ghost
+  Ink's codebook is public, so anyone can read anything it writes.
+* **Distributional or stylometric analysis.** Substituted prose has word
+  frequencies its author would not have produced. This page does *not* implement
+  such a detector, and says so rather than implying the gap is covered.
+* **A careful human reader.** Unlike every other carrier here, this one changes
+  the visible text. A reader who knows the author's voice may simply notice.
+
+So the honest framing is not "this one is undetectable" but "this one moves the
+detection problem out of the representation layer, where all of this page's
+detectors live, and into statistics, where none of them do."
 
 If you need the existence of a message hidden from a capable adversary, this
 class of technique is the wrong tool. See `KNOWN-GAPS.md` for what is not.
@@ -85,6 +105,9 @@ plaintext path. See `CONTAINER.md`.
 * **A capable attacker against the plaintext container.** The CRC-32 in mode 0 is
   framing. It rejects noise and flipped-mode records. It is not authentication
   and is never described as such.
+* **Detection of lexical substitution.** No distributional or stylometric
+  detector is implemented. The word-choice card states what would catch it; the
+  page does not pretend to be that thing. `KNOWN-GAPS.md` has the detail.
 * **Look-alike characters at standards coverage.** The confusable table is a
   hand-curated working subset inspired by UTS #39, not an implementation of it.
   It is sized to make a demonstration legible, not to detect impostors in the
