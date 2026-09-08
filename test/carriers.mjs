@@ -283,6 +283,51 @@ for (const key of COVER_BOUND) {
   }
 }
 
+/* --- the one legitimate use of the Tags block ---
+ *
+ * The three subdivision flags are BUILT from tag characters, so a detector that
+ * treats the block as inherently hostile reports ordinary mail as smuggling —
+ * which is what Microsoft says happened to its own signature before the three
+ * were excluded. The exception has to be exact: excusing "anything shaped like a
+ * flag" would hand the attacker a free wrapper.
+ */
+{
+  const T = M.CARRIERS.tags;
+  const WALES = M.tagFlagSeq("gbwls");
+  const sentence = `Team offsite is in Cardiff ${WALES} — flights booked.`;
+
+  eq(M.emojiTagFlags(sentence).map((f) => f.name), ["Wales"], "the Wales flag is recognised as a flag");
+  eq(T.count(sentence), 0, "a real flag contributes no payload characters");
+  eq(T.decode(sentence), null, "a real flag does not decode as a container");
+  eq(M.extractPayload(sentence), null, "a real flag is not reported as a find");
+  eq(M.cleanText(sentence), sentence, "cleaning must not dismember a real flag");
+  for (const code of Object.keys(M.RGI_TAG_FLAGS)) {
+    eq(M.emojiTagFlags(M.tagFlagSeq(code)).length, 1, `${code} is one of the three excused sequences`);
+  }
+
+  // an unassigned but well-formed tag sequence is NOT excused: the base character
+  // is visible and free, and everything after it is attacker-chosen.
+  const forged = "\u{1F3F4}" + M.toTags("usnyc") + "\u{E007F}";
+  eq(M.emojiTagFlags(forged).length, 0, "a well-formed but unassigned tag sequence is not excused");
+  ok(T.count(forged) > 0, "an unassigned tag sequence is still reported as tag characters");
+  /* The asymmetry, stated rather than implied. Cleaning is not symmetric with
+     detection here and must not be: the three real sequences come through whole,
+     and the forged one is reduced to its visible base — a bare black flag — while
+     the panel still reports it. A detector that quietly repaired the forgery
+     without saying so would be the worse failure of the two. */
+  eq(M.cleanText(forged), "\u{1F3F4}",
+     "cleaning an unassigned tag sequence leaves the plain black flag and nothing else");
+  ok(M.cleanText(forged) !== forged, "the forged sequence really is changed by cleaning");
+
+  // and the exception must not open a hole: a payload riding beside a real flag
+  // is still found, and one whose own bytes sit next to the flag still decodes.
+  const stego = M.weave(sentence, T.encode(M.packPlain("meet at nine")), "append");
+  const found = M.extractPayload(stego);
+  ok(found && found.bytes, "a payload appended after a flag is still found");
+  eq(M.CARRIERS.tags.decode(stego).length, M.packPlain("meet at nine").length,
+     "the flag's own tag characters are not read into the payload");
+}
+
 // --- the codebook itself ---
 {
   ok(M.LEX_GROUPS.length > 20, "the codebook has enough groups to be usable");

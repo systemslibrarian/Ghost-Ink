@@ -15,20 +15,60 @@
     for (const ch of ascii){ out += String.fromCodePoint(TAG_BASE + ch.charCodeAt(0)); }
     return out;
   }
+
+  /* ---------- the one legitimate use of the Tags block ----------
+     Three subdivision flags — England, Scotland and Wales — are *built* out of
+     tag characters: a black-flag base, five tag letters spelling the ISO 3166-2
+     subdivision code, and CANCEL TAG to close the sequence. They are the only
+     emoji tag sequences in Unicode's RGI set, and they are the reason "any
+     character in U+E0000–E007F" is not, by itself, a smuggling signature.
+     Microsoft says its own hunting signature fired on perfectly legitimate mail
+     for exactly this reason until the three were excluded.
+
+     Only those three exact sequences are excused here. A well-formed but
+     unassigned tag sequence is still reported, because "anything shaped like a
+     flag" is precisely the hole a lazy exception opens: the base character is
+     visible and free, and the letters after it are attacker-chosen. */
+  const TAG_FLAG_BASE = 0x1F3F4, TAG_CANCEL = 0xE007F;
+  const RGI_TAG_FLAGS = { gbeng:"England", gbsct:"Scotland", gbwls:"Wales" };
+  const tagFlagSeq = code =>
+    String.fromCodePoint(TAG_FLAG_BASE) + toTags(code) + String.fromCodePoint(TAG_CANCEL);
+  function emojiTagFlags(text){ // -> [{start, end, code, name}] in string offsets
+    const out = [];
+    if (!text || text.indexOf(String.fromCodePoint(TAG_FLAG_BASE)) < 0) return out;
+    for (const code of Object.keys(RGI_TAG_FLAGS)){
+      const seq = tagFlagSeq(code);
+      for (let at = text.indexOf(seq); at >= 0; at = text.indexOf(seq, at + seq.length)){
+        out.push({start: at, end: at + seq.length, code, name: RGI_TAG_FLAGS[code]});
+      }
+    }
+    return out.sort((a, b) => a.start - b.start);
+  }
+  // the string offsets that belong to a legitimate flag, and so are not a payload
+  function tagFlagMask(text){
+    const mask = new Set();
+    for (const f of emojiTagFlags(text)) for (let i = f.start; i < f.end; i++) mask.add(i);
+    return mask;
+  }
+
   function tagsToAscii(str){
-    let out = "";
+    const mask = tagFlagMask(str);
+    let out = "", at = 0;
     for (const ch of str){
-      const cp = ch.codePointAt(0);
-      if (isTag(cp)){ const b = cp - TAG_BASE; if (b >= 0x20 && b <= 0x7E) out += String.fromCharCode(b); }
+      const cp = ch.codePointAt(0), here = at; at += ch.length;
+      if (mask.has(here) || !isTag(cp)) continue;
+      const b = cp - TAG_BASE; if (b >= 0x20 && b <= 0x7E) out += String.fromCharCode(b);
     }
     return out;
   }
   function splitTags(str){ // -> {visible, hidden(ascii), tagCount}
-    let visible = "", hidden = "", n = 0;
+    const mask = tagFlagMask(str);
+    let visible = "", hidden = "", n = 0, at = 0;
     for (const ch of str){
-      const cp = ch.codePointAt(0);
-      if (isTag(cp)){ n++; const b = cp - TAG_BASE; if (b >= 0x20 && b <= 0x7E) hidden += String.fromCharCode(b); }
-      else visible += ch;
+      const cp = ch.codePointAt(0), here = at; at += ch.length;
+      if (isTag(cp) && !mask.has(here)){
+        n++; const b = cp - TAG_BASE; if (b >= 0x20 && b <= 0x7E) hidden += String.fromCharCode(b);
+      } else visible += ch;
     }
     return {visible, hidden, tagCount:n};
   }
@@ -70,6 +110,28 @@
     return CP_NAME[cp] || "?";
   }
   const U = cp => "U+" + cp.toString(16).toUpperCase().padStart(4,"0");
+
+  /* The repair the primary source recommends: strip the tag characters — and the
+     rest of the invisible family — before anything downstream reads the text.
+     Legitimate flag sequences are kept, because deleting their tag letters would
+     turn 🏴󠁧󠁢󠁷󠁬󠁳󠁿 into a plain black flag: a detector that corrupts real text is a
+     detector people switch off.
+
+     Note what this is *not*. NFKC leaves every one of these characters in place
+     except the no-break space; normalisation is not a strip, and a pipeline that
+     only normalises has removed nothing. */
+  function cleanText(text){
+    const mask = tagFlagMask(text);
+    let out = "", at = 0;
+    for (const ch of text){
+      const here = at; at += ch.length;
+      const cat = mask.has(here) ? null : classify(ch.codePointAt(0));
+      if (cat === "space" || cat === "ws") out += " ";   // odd spaces become plain ones
+      else if (cat) continue;                            // drop tags / selectors / zero-width / bidi
+      else out += ch;
+    }
+    return out.replace(/[ \t]+$/, "");                   // and take the SNOW run off the end
+  }
 
   /* ---------- look-alikes: a UTS #39-inspired working subset ----------
      NOT an implementation of UTS #39. This is a hand-curated table of roughly a
@@ -479,7 +541,12 @@
         if (!ascii) return null;
         try{ return b64ToBytes(ascii); }catch(e){ return null; }
       },
-      count(text){ let n = 0; for (const ch of text) if (isTag(ch.codePointAt(0))) n++; return n; }
+      count(text){
+        const mask = tagFlagMask(text);
+        let n = 0, at = 0;
+        for (const ch of text){ const here = at; at += ch.length; if (isTag(ch.codePointAt(0)) && !mask.has(here)) n++; }
+        return n;
+      }
     },
     vs: {
       label: "Variation selectors", cat: "vs",
@@ -612,7 +679,8 @@
     {id:"tags", layer:"encoding", name:"Unicode Tags", anchor:"#hide-panel",
      where:"U+E0000–E007F, mirroring ASCII", human:"nothing", machine:"the full message",
      caught:["codepoint"], missed:["normalise","dom"],
-     defence:"reject or strip the block on input", survivability:"often normalised away in transit"},
+     defence:"strip the block on input, excluding the three subdivision-flag sequences built from it",
+     survivability:"often normalised away in transit"},
     {id:"vs", layer:"encoding", name:"Variation selectors", anchor:"#emoji-card",
      where:"U+FE00–FE0F and U+E0100–E01EF, one byte each", human:"one emoji", machine:"the full message",
      caught:["codepoint"], missed:["normalise","dom"],
@@ -1046,6 +1114,12 @@
     render.innerHTML = ""; legend.innerHTML = ""; legend.hidden = true;
     let total = 0, tagsAscii = "", homo = 0;
     const counts = {};
+    /* Legitimate emoji tag sequences are found first and then left alone. They
+       are the routine false positive of a Tags signature, and showing them as
+       excluded teaches more than silently skipping them would. */
+    const flags = emojiTagFlags(text);
+    const flagAt = new Map(flags.map(f => [f.start, f]));
+    let skipTo = 0;
     // A run of trailing whitespace is the SNOW carrier. No single codepoint here
     // is unusual, so this has to be spotted positionally rather than by lookup.
     const tail = /[ \t]{4,}$/.exec(text);
@@ -1054,6 +1128,17 @@
     let idx = 0;
     for (const ch of chars){
       const at = idx; idx += ch.length;
+      if (at < skipTo) continue;
+      const flag = flagAt.get(at);
+      if (flag){
+        skipTo = flag.end;
+        const chip = document.createElement("span");
+        chip.className = "chip flagseq";
+        chip.textContent = `${text.slice(flag.start, flag.end)} ${flag.name} flag — legitimate`;
+        chip.title = "An emoji tag sequence: the flag is built out of tag characters, so this is not smuggling";
+        render.appendChild(chip);
+        continue;
+      }
       const cp = ch.codePointAt(0);
       const inTail = tailFrom >= 0 && at >= tailFrom;
       const cat = inTail ? "ws" : classify(cp);
@@ -1075,7 +1160,22 @@
         render.appendChild(document.createTextNode(ch));
       }
     }
-    if (total === 0){ render.textContent = "Clean — no hidden or deceptive characters found."; stat.textContent = ""; return; }
+    /* One sentence, appended to whatever else the panel concludes: the exception
+       has to travel with the verdict, not replace it. */
+    const flagNote = !flags.length ? "" :
+      ` · plus ${flags.length} legitimate emoji tag sequence${flags.length>1?"s":""} ` +
+      `(${[...new Set(flags.map(f => f.name))].join(", ")}), <b>excluded</b> — the flag is <i>built</i> from ` +
+      `tag characters, so a naive “any character in the Tags block” rule calls this smuggling and is wrong`;
+    const say = html => { stat.innerHTML = html + flagNote; };
+    if (total === 0){
+      if (!flags.length){ render.textContent = "Clean — no hidden or deceptive characters found."; stat.textContent = ""; return; }
+      // the flag alone: one sentence, not a verdict with a footnote hung off it
+      const names = [...new Set(flags.map(f => f.name))].join(", ");
+      stat.innerHTML = `Clean — no smuggling here. The only tag characters are the <b>${escapeHtml(names)}</b> ` +
+        `flag emoji, which is <i>built</i> from them, so a naive “any character in the Tags block” rule calls ` +
+        `this an attack and is wrong. It is the one routine exception a Tags signature has to carve out.`;
+      return;
+    }
 
     // legend for the categories that showed up
     for (const cat of Object.keys(INV)){
@@ -1091,26 +1191,32 @@
     const head = `${total} hidden/deceptive character${total>1?"s":""} — ${summary}`;
     if (homo){
       const scripts = [...new Set([...text].filter(c => CONFUSABLE[c] !== undefined).map(c => SCRIPT_OF(c.codePointAt(0))))];
-      stat.innerHTML = `${escapeHtml(head)} · ${homo} look-alike character${homo>1?"s":""} ` +
+      say(`${escapeHtml(head)} · ${homo} look-alike character${homo>1?"s":""} ` +
         `(${escapeHtml(scripts.join(", "))}) · it is pretending to be <span class="k">${escapeHtml(skeleton(text).trim())}</span>` +
-        ` · matched against a working subset of the Unicode confusables, not the full UTS&nbsp;#39 table`;
+        ` · matched against a working subset of the Unicode confusables, not the full UTS&nbsp;#39 table`);
       return;
     }
     if (counts.tags){
       try{
         const r = await unpack(b64ToBytes(tagsAscii), null);
-        stat.innerHTML = `${escapeHtml(head)} · recovered Ghost Ink payload: <span class="k">${escapeHtml(r.text)}</span>`;
+        say(`${escapeHtml(head)} · recovered Ghost Ink payload: <span class="k">${escapeHtml(r.text)}</span>`);
         return;
       }catch(e){
-        if (e.code === "needpass"){ stat.innerHTML = `${escapeHtml(head)} · an encrypted Ghost Ink payload — a passphrase is required to read it`; return; }
-        stat.innerHTML = `${escapeHtml(head)} · Tags woven <b>inside the visible words</b> — the hallmark of keyword obfuscation, not a Ghost Ink message`;
+        if (e.code === "needpass"){ say(`${escapeHtml(head)} · an encrypted Ghost Ink payload — a passphrase is required to read it`); return; }
+        say(`${escapeHtml(head)} · Tags woven <b>inside the visible words</b> — the hallmark of keyword obfuscation, not a Ghost Ink message`);
         return;
       }
     }
-    stat.innerHTML = `${escapeHtml(head)} · ${escapeHtml(catAdvice(counts))}`;
+    say(`${escapeHtml(head)} · ${escapeHtml(catAdvice(counts, text))}`);
   }
-  function catAdvice(counts){
+  function catAdvice(counts, text){
     if (counts.ws)    return "an unbroken run of trailing spaces and tabs — the SNOW carrier, and the one this detector can only catch by position";
+    /* Named before the generic zero-width line, because these two are the oldest
+       keyword-breaking trick in mail filtering and behave differently under
+       normalisation: NFKC folds the no-break space to a plain one and leaves the
+       soft hyphen exactly where it is. */
+    if ((counts.zw || counts.space) && /[\u00AD\u00A0]/.test(text))
+      return "soft hyphens and no-break spaces inside words — the keyword-breaking trick spam filters have hunted since long before the Tags block, and only half of it normalises away: NFKC folds U+00A0 to a plain space and leaves U+00AD untouched";
     if (counts.bidi)  return "bidi controls can reorder how text displays vs. how it’s stored — the Trojan Source trick";
     if (counts.vs)    return "hidden bytes can ride inside variation selectors — the “emoji smuggling” carrier";
     if (counts.zw)    return "zero-width characters are a classic way to hide data or split up words";
@@ -1141,6 +1247,18 @@
     const runs = "\u200B\u200C\u200D\u2060".repeat(6);
     loadExample("This looks like an ordi\u200Bnary sentence." + runs + " Nothing to see here.");
   });
+  /* NBSP and soft hyphen: the decades-old version of the same idea. No exotic
+     block, no new standard — just two characters that break a literal match
+     while the reader sees an ordinary word. */
+  $("nbspBtn").addEventListener("click", () => {
+    loadExample("Claim your fr\u00ADee pri\u00ADze now \u2014 no\u00A0cost, no\u00A0catch, and no cre\u00ADdit check.");
+  });
+  /* The false positive. A Tags signature that has not carved out the three
+     subdivision flags fires on ordinary mail — which is how a good signature
+     gets turned off. */
+  $("flagBtn").addEventListener("click", () => {
+    loadExample("Team offsite is in Cardiff " + tagFlagSeq("gbwls") + " \u2014 flights booked, hotel to follow.");
+  });
   // Bidi / Trojan Source: an override makes the display order lie about the stored order
   $("bidiBtn").addEventListener("click", () => {
     loadExample("Attachment: resume_\u202Efdp.exe\u202C — the name displays as a PDF, but the stored bytes say .exe");
@@ -1154,6 +1272,103 @@
     loadExample("Nothing unusual about this line at all." + CARRIERS.snow.encode(packPlain("snow")));
   });
 
+
+  /* =========================================================
+     WHAT THE TOKENIZER SEES
+     The filter-evasion life of the Tags carrier, at the scale of one word. The
+     model's-eye view above shows a whole instruction smuggled in; this shows the
+     inverted goal — one invisible character placed inside a word a classifier
+     already knows, so the familiar unit stops being one.
+
+     Nothing here runs a tokenizer. No vocabulary ships in this page, and which
+     sub-tokens a real model emits depends on that model. What the panel shows is
+     the part that is certain: the word the classifier was trained on is no longer
+     present as a unit, and the reader cannot tell. The rest is labelled as the
+     illustration it is — see docs/KNOWN-GAPS.md.
+  ========================================================= */
+  const TAG_SPACE = String.fromCodePoint(0xE0020);
+  let tokAt = 3;                                   // fun|ding, the published example
+  function renderTok(){
+    const chars = [...$("tokWord").value];
+    const gaps = $("tokGaps");
+    tokAt = Math.max(0, Math.min(tokAt, chars.length));
+    const raw = chars.slice(0, tokAt).join("") + TAG_SPACE + chars.slice(tokAt).join("");
+
+    // the word, with a clickable gap between every pair of characters
+    gaps.innerHTML = "";
+    if (!chars.length){ gaps.textContent = "Type a word."; }
+    chars.forEach((ch, i) => {
+      if (i > 0) gaps.appendChild(gapButton(i));
+      const cell = document.createElement("span");
+      cell.className = "tok-ch"; cell.textContent = ch;
+      gaps.appendChild(cell);
+    });
+
+    $("tokHuman").textContent = raw;               // the tag character draws as nothing
+    const bytes = $("tokBytes"); bytes.innerHTML = "";
+    for (const ch of raw){
+      const cp = ch.codePointAt(0);
+      if (isTag(cp)){
+        const chip = document.createElement("span");
+        chip.className = "chip tags tight"; chip.textContent = `TAG SP ${U(cp)}`;
+        bytes.appendChild(chip);
+      } else bytes.appendChild(document.createTextNode(ch));
+    }
+
+    const head = chars.slice(0, tokAt).join(""), tail = chars.slice(tokAt).join("");
+    const toks = $("tokTokens"); toks.innerHTML = "";
+    for (const t of [head, null, tail]){
+      if (t === null){
+        const chip = document.createElement("span");
+        chip.className = "chip tags tight"; chip.textContent = "unknown";
+        toks.appendChild(chip);
+        continue;
+      }
+      if (!t) continue;
+      const chip = document.createElement("span");
+      chip.className = "chip tok"; chip.textContent = t;
+      toks.appendChild(chip);
+    }
+
+    /* The two repairs, side by side, because they are not the same repair.
+       NFKC is the one people reach for and the one that does nothing here. */
+    const nfkc = raw.normalize("NFKC");
+    $("tokNfkc").innerHTML = nfkc === raw
+      ? `unchanged — NFKC does not remove tag characters (${[...nfkc].length} code points, still)`
+      : `<span class="k">${escapeHtml(nfkc)}</span>`;
+    const stripped = cleanText(raw);
+    $("tokStrip").innerHTML = `<span class="k">${escapeHtml(stripped)}</span> — the familiar unit is back`;
+
+    const word = chars.join("");
+    $("tokStat").textContent =
+      `${[...word].length} letters, ${[...raw].length} code points. No tokenizer runs on this page: which sub-tokens a real ` +
+      `vocabulary emits depends on the model, and the middle chip stands for “a token nobody trained on”. ` +
+      `What is certain is the part that matters — “${word}” is no longer present as a unit, and the reader still sees it.`;
+  }
+  function gapButton(i){
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "tok-gap" + (i === tokAt ? " on" : "");
+    b.setAttribute("aria-pressed", String(i === tokAt));
+    b.title = `Put the invisible character here`;
+    b.setAttribute("aria-label", `Put the invisible character after character ${i}`);
+    b.addEventListener("click", () => { tokAt = i; renderTok(); });
+    return b;
+  }
+  $("tokWord").addEventListener("input", () => {
+    const n = [...$("tokWord").value].length;
+    if (tokAt > n || tokAt < 1) tokAt = Math.max(1, Math.min(3, n));
+    renderTok();
+  });
+  $("tokCopy").addEventListener("click", () => {
+    const chars = [...$("tokWord").value];
+    copy(chars.slice(0, tokAt).join("") + TAG_SPACE + chars.slice(tokAt).join(""), $("tokCopy"), "Copied");
+  });
+  $("tokXray").addEventListener("click", () => {
+    const chars = [...$("tokWord").value];
+    const raw = chars.slice(0, tokAt).join("") + TAG_SPACE + chars.slice(tokAt).join("");
+    loadExample(`Pre-approved for bridge ${raw} — review terms and confirm next steps.`);
+  });
 
   /* =========================================================
      SPOT THE GHOST
@@ -1237,8 +1452,12 @@
     });
   }
   function stripInvisible(text){
-    let out = "";
-    for (const ch of text) if (!classify(ch.codePointAt(0))) out += ch;
+    const mask = tagFlagMask(text);   // a real flag is visible text, not a payload
+    let out = "", at = 0;
+    for (const ch of text){
+      const here = at; at += ch.length;
+      if (mask.has(here) || !classify(ch.codePointAt(0))) out += ch;
+    }
     return out;
   }
   $("gameCheck").addEventListener("click", () => {
@@ -2056,23 +2275,13 @@
     host.appendChild(svg);
   })();
 
-  function cleaned(text){
-    let clean = "";
-    for (const ch of text){
-      const cat = classify(ch.codePointAt(0));
-      if (cat === "space" || cat === "ws") clean += " ";  // normalise odd spaces to a plain space
-      else if (cat) continue;                             // drop tags / var-selectors / zero-width / bidi
-      else clean += ch;
-    }
-    return clean.replace(/[ \t]+$/, "");                  // and take the SNOW run off the end
-  }
   $("stripBtn").addEventListener("click", () => {
-    copy(cleaned($("inspectIn").value), $("stripBtn"), "Copied cleaned text");
+    copy(cleanText($("inspectIn").value), $("stripBtn"), "Copied cleaned text");
   });
   // Impostors are visible characters, so deleting them mangles the text. The
   // repair is to fold each one back to the ASCII it was imitating.
   $("foldBtn").addEventListener("click", () => {
-    copy(skeleton(cleaned($("inspectIn").value)), $("foldBtn"), "Copied ASCII-folded text");
+    copy(skeleton(cleanText($("inspectIn").value)), $("foldBtn"), "Copied ASCII-folded text");
   });
 
   /* =========================================================
@@ -2092,6 +2301,7 @@
     imgSecret: $("imgSecret").value,
     lexCover: $("lexCover").value,
     lexSecret: $("lexSecret").value,
+    tokWord: $("tokWord").value,
     hideOut: {cls: $("hideOut").className, html: $("hideOut").innerHTML},
     findOut: {cls: $("findOut").className, html: $("findOut").innerHTML},
     lexOut: {cls: $("lexOut").className, text: $("lexOut").textContent},
@@ -2140,6 +2350,7 @@
     $("survBack").value = "";
     $("mevCover").value = DEF.mevCover; $("mevInj").value = DEF.mevInj;
     $("mevPanes").hidden = true; $("mevStat").textContent = ""; mevStego = "";
+    $("tokWord").value = DEF.tokWord; tokAt = 3; renderTok();
     $("wmDoc").value = DEF.wmDoc; $("wmNames").value = DEF.wmNames; $("wmLeak").value = "";
     $("wmOut").className = "out empty"; $("wmOut").textContent = "Stamped copies appear here, one per recipient.";
     $("wmTraceOut").className = "out empty"; $("wmTraceOut").textContent = "The tracer names a recipient here.";
@@ -2385,6 +2596,7 @@
   // start the live panels
   drawSource(imgSeed);
   renderInspect();
+  renderTok();
   newRound();
   newProbe();
 

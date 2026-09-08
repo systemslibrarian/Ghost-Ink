@@ -298,6 +298,28 @@
   .homo{background:color-mix(in srgb, var(--warn) 20%, transparent); border-bottom:2px dotted var(--warn);
     border-radius:3px 3px 0 0; padding:0 1px; cursor:help}
   .legend .sw.homo{background:color-mix(in srgb, var(--warn) 30%, transparent); border-color:var(--warn); border-bottom-style:dotted}
+  /* the false positive: a flag emoji really is built out of tag characters, so
+     the inspector marks it as excluded rather than as a find. Green, and it says
+     "legitimate" in words — never colour on its own. */
+  .chip.flagseq{background:color-mix(in srgb, var(--ok) 14%, transparent); color:var(--ok);
+    border-color:color-mix(in srgb, var(--ok) 55%, transparent); font-size:11.5px}
+
+  /* ---- what the tokenizer sees ---- */
+  .tok-gaps{display:flex; align-items:center; flex-wrap:wrap; gap:0; margin:-4px 0 12px;
+    font-family:var(--font-mono); font-size:19px; color:var(--ink)}
+  .tok-ch{display:inline-block; min-width:14px; text-align:center; padding:2px 0}
+  .tok-gap{width:16px; height:30px; padding:0; margin:0; background:transparent; cursor:pointer;
+    border:1px dashed var(--edge); border-radius:5px; color:var(--ink-faint)}
+  .tok-gap:hover{border-color:var(--uv)}
+  .tok-gap.on{background:var(--uv-soft); border:1px solid var(--uv); border-radius:5px}
+  .tok-gap.on::after{content:"↕"; font-size:11px; color:var(--uv)}
+  .tok-rows{margin-top:12px; display:grid; gap:5px; font-size:12.5px; font-family:var(--font-mono)}
+  .tok-row{display:flex; gap:8px; align-items:baseline; flex-wrap:wrap}
+  .tok-lab{color:var(--ink-faint); min-width:118px; flex:0 0 auto}
+  .tok-val{color:var(--ink); word-break:break-word}
+  .chip.tok{background:var(--paper); color:var(--ink); border-color:var(--edge); font-size:12px}
+  #tokHuman{font-family:var(--font-serif); font-size:17px}
+  #tokBytes{font-family:var(--font-mono); font-size:13px; word-break:break-word}
 
   /* teach sections */
   .teach{margin-top:12px}

@@ -89,9 +89,11 @@ which carrier was used, and X-ray any text for the whole family of hidden or
 deceptive characters.
 
 **Play with it** — Spot the Ghost (a guessing game you cannot win by looking),
-the model's-eye view of a prompt injection, a survivability lab you run through
-your own apps, a leak tracer, an emoji that carries a whole message, and a
-look-alike forge that shows you the Punycode your browser would fall back to.
+the model's-eye view of a prompt injection, the same carrier seen from inside a
+filter's tokenizer (one invisible character inside `funding`, and the familiar
+unit is gone), a survivability lab you run through your own apps, a leak tracer,
+an emoji that carries a whole message, and a look-alike forge that shows you the
+Punycode your browser would fall back to.
 
 **The same trick, other disguises** — display order vs. stored order (Trojan
 Source), what a scraper reads when text is hidden by CSS, clipboard substitution,
@@ -189,7 +191,7 @@ npm run test:e2e    # Playwright, runs npm run build first
 | --- | --- |
 | `test/roundtrip.mjs` | A deliberately **independent** re-implementation of the decoder, written from the spec and importing nothing from the app. Checks the invariants and cross-validates v2 against a second implementation. |
 | `test/container.mjs` | The v2 format, and above all its refusals: header authentication, the mode-downgrade attack, bounded KDF iterations, truncation, trailing bytes, CRC mismatch, noise rejection, v1 legacy read. |
-| `test/carriers.mjs` | All five carriers as shipped — round trips, advertised cost vs. actual output, both weave modes, encrypted payloads, carrier auto-detection, the variation-selector block boundary, and SNOW's blind spot asserted rather than assumed. For the cover-bound word-choice carrier: capacity accounting, fail-closed on insufficient cover, case preservation, that only whole words change, that the codebook is unambiguous, and its blind spot asserted the same way — no unusual codepoint, nothing positional, no look-alike, and auto-detection returning nothing. |
+| `test/carriers.mjs` | All five carriers as shipped — round trips, advertised cost vs. actual output, both weave modes, encrypted payloads, carrier auto-detection, the variation-selector block boundary, SNOW's blind spot asserted rather than assumed, and the emoji-tag-sequence exception both ways round — a real subdivision flag is neither counted nor decoded nor dismembered by cleaning, a forged one is still reported. For the cover-bound word-choice carrier: capacity accounting, fail-closed on insufficient cover, case preservation, that only whole words change, that the codebook is unambiguous, and its blind spot asserted the same way — no unusual codepoint, nothing positional, no look-alike, and auto-detection returning nothing. |
 | `test/build.mjs` | That the CSP hash matches the stylesheet it authorises, that the policy is actually restrictive, that no subresource is off-site, that `dist/` contains exactly the application, and that the cache name matches the deployed bytes. |
 | `test/consistency.mjs` | Anti-drift. Carrier and panel counts derived from the code rather than typed twice; every taxonomy anchor resolves; every technique is demonstrated by a card and vice versa; every path the README names exists; the corrected telemetry facts cannot regress. |
 
@@ -203,11 +205,11 @@ application's own codec by slicing the pure region out of `app.js`
 | --- | --- |
 | `e2e/disguises.spec.js` | The five disguise panels: that both bidi panes hold the identical string, that the stored-order pane is **not itself reordered** by the controls it displays (verified by measuring glyph positions), that hidden text is present in the DOM and occupies no visible area, that copy is replaced with exactly the inert string, that the normalisation examples produce the stated NFKC and case-fold results, that image LSB round-trips, that **no channel moves by more than 1** and alpha is untouched, and that corrupt length headers fail cleanly. |
 | `e2e/security.spec.js` | Twenty hostile fragments against the scraper panel — script elements, event handlers, `img onerror`, remote images, SVG script, iframes, `object`/`embed`, `javascript:` URLs, forms, style elements, `url()`, `@import`, meta refresh, `base`, unclosed and case-mixed markup, entity-encoded handlers, `srcdoc` smuggling, remote stylesheets, video posters. Each asserts no execution, **no off-site request**, no navigation, no restyling of the parent, and no escape from the frame. Plus the page-level CSP and a whole-exhibit zero-third-party-request check. |
-| `e2e/panels.spec.js` | Clear on every panel that has one, Reset restoring every panel, all four invisible carriers end to end with auto-detection, the word-choice panel round-tripping in the browser while the X-ray reports the result clean, and the encrypted path reporting authentication. |
+| `e2e/panels.spec.js` | Clear on every panel that has one, Reset restoring every panel, all four invisible carriers end to end with auto-detection, the word-choice panel round-tripping in the browser while the X-ray reports the result clean, the encrypted path reporting authentication, and the detector's exception both ways — a real subdivision flag reported as *excluded* and surviving the clean, a forged one still reported and reduced by the clean to its bare visible base — plus the tokenizer card splitting its word, holding the invisible character in a pane that reads as the word, and keeping the NFKC row and the strip row apart. |
 | `e2e/a11y.spec.js` | axe-core over WCAG 2.0/2.1 A and AA rule tags, failing on serious and critical violations, before and after every panel has produced output — including the word-choice panel, the only carrier whose output is visible prose, whose marks are asserted to be explained by visible text rather than by colour, underline shape or a `title` attribute; full tab-order walk asserting visible focus on every control; keyboard-only operation; invisible characters explained by text not colour; live regions; the chart's text alternative; 200% and 400% zoom without horizontal scroll; a 360px viewport; light and dark contrast; and `prefers-reduced-motion` suppressing all animation. |
 | `e2e/pwa.spec.js` | Manifest completeness with every icon fetched, the whole exhibit working with the network cut, a content-derived cache name, and a stale cache generation being evicted rather than stranding the user. |
 
-231 browser tests — 77 per engine across Chromium, Firefox and WebKit, all three
+243 browser tests — 81 per engine across Chromium, Firefox and WebKit, all three
 run in CI on every push and pull request. The offline and service-worker tests
 skip outside Chromium, and WebKit's keyboard-reachability floor differs because
 Safari's Tab default does — both are recorded in
@@ -226,6 +228,24 @@ The more useful figure from the same research: **over 99% of those messages were
 caught anyway**, by reputation, ML classification, brand-impersonation checks and
 authentication — not by noticing the invisible characters. One layer was defeated;
 the others held.
+
+Two details from the same source are worth more to a defender than the spike, and
+both are implemented here rather than described:
+
+* **A Tags signature is not ground truth.** Microsoft's first version kept firing
+  on legitimate mail, because the England, Scotland and Wales flag emoji are
+  *built* out of tag characters — a black-flag base, five tag letters spelling the
+  ISO 3166-2 subdivision, and CANCEL TAG. Those three sequences had to be
+  excluded. Ghost Ink's Inspect panel implements the same exception and shows it
+  working (the **Flag emoji** example), and excuses **only** those three: a
+  well-formed but unassigned tag sequence is still reported, because "anything
+  shaped like a flag" is the hole a lazy exception opens.
+* **The attack is aimed at the tokenizer.** `funding` is one familiar unit to a
+  classifier; with a `U+E0020` inside it, it is not. The **What the tokenizer
+  sees** card takes one word apart and shows what each layer does with it — and
+  is explicit that **NFKC does not remove tag characters**. Only an explicit strip
+  does. Of the older keyword-breaking pair, NFKC folds `U+00A0` to a plain space
+  and leaves `U+00AD` exactly where it was.
 
 Primary source: [Microsoft Security Blog, 3 September 2026](https://www.microsoft.com/en-us/security/blog/2026/09/03/ascii-smuggling-crosses-over-from-ai-prompt-injection-to-phishing-evasion/).
 Secondary reporting: [Ars Technica, 4 September 2026](https://arstechnica.com/security/2026/09/once-popular-for-attacking-ai-ascii-smuggling-is-embraced-by-spammers/).

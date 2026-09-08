@@ -201,6 +201,42 @@ const eq = (a, b, m) => { assert.deepEqual(a, b, m); n++; };
   }
 }
 
+// ---------- the exception, and the correction that came with it ----------
+{
+  /* Two claims that would be worse than useless if they drifted: the detector's
+     one carve-out, and the difference between normalising and stripping. Both
+     are derived from the code here rather than trusted to prose. */
+  const excused = Object.keys(M.RGI_TAG_FLAGS);
+  eq(excused.sort(), ["gbeng", "gbsct", "gbwls"], "exactly the three RGI subdivision flags are excused");
+  for (const code of excused) {
+    const seq = M.tagFlagSeq(code);
+    eq(M.CARRIERS.tags.count(seq), 0, `${code} contributes no payload characters`);
+    eq(M.cleanText(seq), seq, `${code} survives cleaning intact`);
+  }
+  const forged = "\u{1F3F4}" + M.toTags("usnyc") + "\u{E007F}";
+  eq(M.emojiTagFlags(forged).length, 0, "only the three are excused — nothing structural");
+  ok(readFileSync(ROOT + "docs/KNOWN-GAPS.md", "utf8").includes("whitelist of exactly three"),
+     "KNOWN-GAPS records that the exception is a whitelist, not a structural rule");
+
+  // the page must name the exception where it names the signature
+  ok(/England, Scotland and Wales/.test(html), "the page names the three flags the signature had to exclude");
+
+  /* NFKC does not remove tag characters. The page said otherwise by implication
+     once; the card exists partly to correct it, so the claim is guarded. */
+  const tagged = "fun\u{E0020}ding";
+  eq(tagged.normalize("NFKC"), tagged, "NFKC really does leave tag characters in place");
+  eq("\u00A0".normalize("NFKC"), " ", "NFKC really does fold the no-break space");
+  eq("\u00AD".normalize("NFKC"), "\u00AD", "NFKC really does leave the soft hyphen");
+  /* The negated form ("NFKC does not remove tag characters") is the whole point,
+     so the guard looks for the positive claim only. */
+  ok(!/NFKC(?![^.]{0,40}\b(not|never)\b)[^.]{0,60}(strips?|removes?)[^.]{0,40}tag/i.test(readme + html + app),
+     "nothing may claim that NFKC strips tag characters");
+  ok(/No tokenizer runs on this page/.test(app),
+     "the tokenizer card states in the UI that no tokenizer runs here");
+  ok(readFileSync(ROOT + "docs/KNOWN-GAPS.md", "utf8").includes("No tokenizer runs on this page"),
+     "KNOWN-GAPS records the tokenizer illustration as an illustration");
+}
+
 // ---------- the reference docs exist and are linked ----------
 {
   for (const f of ["docs/THREAT-MODEL.md", "docs/REFERENCES.md", "docs/KNOWN-GAPS.md",

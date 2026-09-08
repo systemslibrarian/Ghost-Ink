@@ -38,6 +38,29 @@ carrier specifically** below.
   part of speech or collocation — so a substitution that is wrong for the
   sentence is possible and the prose reads a little unnaturally. Groups are sized
   2^k purely so the arithmetic is a rank rather than a range coder.
+* **No tokenizer runs on this page, and the tokenizer card does not pretend one
+  does.** `#tok-card` shows what happens to one word when an invisible tag
+  character lands inside it: where it splits, what the code points are, and what
+  each repair does to it. The token chips it draws are an *illustration*, not a
+  measurement — no vocabulary ships in this page, and which sub-tokens a real
+  model emits depends on that model. What the card asserts is the part that is
+  certain: the word the classifier was trained on is no longer present as a unit,
+  and the reader cannot tell. The card says so in its own summary line, not only
+  here.
+* **The emoji-tag-sequence exception is a whitelist of exactly three sequences.**
+  England, Scotland and Wales — the whole RGI set — are excused; everything else
+  in the Tags block is reported, including a *well-formed but unassigned* tag
+  sequence, which a structural implementation would excuse. The choice is
+  deliberate and it cuts both ways: a structural rule would also excuse an
+  attacker's own black-flag-plus-tag-letters wrapper, and this whitelist will
+  report a genuinely new subdivision flag as suspicious if Unicode ever adds one.
+  `test/carriers.mjs` asserts both directions rather than only the happy one.
+* **Scattering a payload through a cover can dismember a flag already in it.**
+  `weave()` in scatter mode inserts tag characters between visible characters
+  without regard for sequences already present, so hiding a payload in a cover
+  containing a subdivision flag can break that flag into a black flag and loose
+  tag letters. The detector's exception is unaffected — it simply stops matching —
+  and the default append mode cannot cause it. Unfixed.
 * **The bidi demonstration is illustrative, not a compiler test.** It shows that
   drawn order and stored order disagree, which is verified in the browser by
   measuring glyph positions. It does not compile anything, and the source-comment

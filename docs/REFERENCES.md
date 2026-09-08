@@ -21,6 +21,12 @@ page says so rather than borrowing authority from a secondary one.
   `admin` after a filter has already approved it.
 * **Tags block (U+E0000–U+E007F)** — Unicode Standard, and the deprecation
   history in the character database. The block that gives this project its name.
+* **Unicode Technical Standard #51: Unicode Emoji** —
+  <https://www.unicode.org/reports/tr51/>. Defines *emoji tag sequences*: a base
+  character followed by tag letters and terminated by CANCEL TAG (U+E007F). This
+  is the only routine legitimate use of the Tags block in ordinary text, and the
+  RGI set contains exactly three of them — the flags of England, Scotland and
+  Wales. Ghost Ink's detector excuses those three sequences and nothing else.
 
 ## Trojan Source
 
@@ -41,6 +47,25 @@ page says so rather than borrowing authority from a secondary one.
   11 February; a peak of 2.37 million on 26 February; near-zero Sundays; elevated
   for roughly three months, dropping sharply after 15 May 2026; and — the figure
   that matters most — over 99% of the messages flagged by other layers anyway.
+  Two further claims on this page come from it, quoted here so they can be checked.
+  On the false positive its own signature produced: it "kept firing on a small
+  subset of perfectly legitimate messages – which, on inspection, all contained
+  one of three subdivision flag emojis: the flags of England, Scotland, and Wales
+  – because those emojis are encoded using tag characters," and "the one routine
+  exception, the England/Scotland/Wales flag emojis, is easily excluded." On the
+  tokenizer, which is what the **What the tokenizer sees** card illustrates:
+  inserting an invisible U+E0020 into a word means "the tokenizer may no longer
+  see that same familiar unit. It might split the text into fun, an unexpected tag
+  character, and ding; it might emit rare or unknown sub-tokens; or, if
+  normalization runs first, it simply removes the U+E0020 character, leaving
+  funding." **Note what that last clause does and does not say.** The
+  normalisation it describes is a pipeline step that strips tag characters — the
+  post's own recommendation is to "Strip or normalize Unicode tag characters
+  (U+E0000-U+E007F) – and other zero-width / invisible code points – from email
+  subject and body text before applying spam and phishing content signatures." It
+  is **not** Unicode NFKC. NFKC leaves tag characters, zero-width characters and
+  the soft hyphen exactly where they are, and of that whole family folds only the
+  no-break space. The card shows both rows for that reason.
 * **VS Code Unicode highlighting** — the `editor.unicodeHighlight.*` settings
   (`invisibleCharacters`, `ambiguousCharacters`, `nonBasicASCII`). Verify the
   current names against the VS Code settings documentation before relying on

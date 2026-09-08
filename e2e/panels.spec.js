@@ -73,6 +73,74 @@ test("Reset restores every panel to its authored state", async ({ page }) => {
   await expect(page.locator("#gameRows .verdict")).toHaveCount(0);
 });
 
+test.describe("the detector's exception and the tokenizer card", () => {
+  /* The three subdivision flags are built out of tag characters. A signature that
+     has not carved them out fires on ordinary mail — which is how a good
+     signature gets switched off. */
+  test("a real subdivision flag is reported as excluded, not as smuggling", async ({ page }) => {
+    await page.click("#flagBtn");
+    await expect(page.locator("#inspectRender .chip.flagseq")).toHaveCount(1);
+    await expect(page.locator("#inspectRender .chip.flagseq")).toContainText("legitimate");
+    await expect(page.locator("#inspectStat")).toContainText("Clean — no smuggling here");
+    await expect(page.locator("#inspectStat")).toContainText("Wales");
+    // the verdict must not be "hidden characters found"
+    await expect(page.locator("#inspectStat")).not.toContainText("hidden/deceptive");
+    // and the payload verdict still travels with a find, when there is one
+    await page.fill("#inspectIn", (await page.inputValue("#inspectIn")) + "\u{E0041}\u{E0042}");
+    await expect(page.locator("#inspectStat")).toContainText("hidden/deceptive");
+    await expect(page.locator("#inspectStat")).toContainText("excluded");
+  });
+
+  test("a forged tag sequence is still reported, and cleaning strips it to the bare flag", async ({ page, context, browserName }) => {
+    // clipboard read is only reliably grantable in Chromium
+    test.skip(browserName !== "chromium", "clipboard permissions are Chromium-only here");
+    const forged = "Offsite in \u{1F3F4}\u{E0075}\u{E0073}\u{E006E}\u{E0079}\u{E0063}\u{E007F} next week.";
+    await page.fill("#inspectIn", forged);
+    await expect(page.locator("#inspectRender .chip.tags").first()).toBeVisible();
+    await expect(page.locator("#inspectRender .chip.flagseq")).toHaveCount(0);
+    await expect(page.locator("#inspectStat")).toContainText("hidden/deceptive");
+
+    /* The intended asymmetry: the panel reports it AND the repair reduces it to
+       its visible base. Read through the page's own clipboard write rather than
+       asserting on a helper, so what the button actually hands the user is what
+       is checked. */
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.click("#stripBtn");
+    const pasted = await page.evaluate(() => navigator.clipboard.readText());
+    expect(pasted).toContain("Offsite in \u{1F3F4} next week.");
+    expect(pasted).not.toMatch(/[\u{E0000}-\u{E007F}]/u);
+  });
+
+  test("the tokenizer card splits the word and distinguishes the two repairs", async ({ page }) => {
+    await expect(page.locator("#tokTokens .chip.tok").first()).toHaveText("fun");
+    await expect(page.locator("#tokTokens .chip.tok").last()).toHaveText("ding");
+    await expect(page.locator("#tokBytes .chip.tags")).toContainText("U+E0020");
+    /* The human pane holds the tag character too — that is the point. It draws as
+       nothing, so what the reader sees is the word; what the DOM holds is not. */
+    const human = await page.locator("#tokHuman").textContent();
+    expect(human).not.toEqual("funding");
+    expect(human.replace(/[\u{E0000}-\u{E007F}]/gu, "")).toEqual("funding");
+    await expect(page.locator("#tokNfkc")).toContainText("NFKC does not remove tag characters");
+    await expect(page.locator("#tokStrip")).toContainText("funding");
+    await expect(page.locator("#tokStat")).toContainText("No tokenizer runs on this page");
+
+    // moving the gap moves the split
+    await page.locator("#tokGaps .tok-gap").nth(0).click();
+    await expect(page.locator("#tokTokens .chip.tok").first()).toHaveText("f");
+    await expect(page.locator("#tokTokens .chip.tok").last()).toHaveText("unding");
+
+    // and the X-ray hand-off shows the same character as keyword obfuscation
+    await page.click("#tokXray");
+    await expect(page.locator("#inspectStat")).toContainText("inside the visible words");
+  });
+
+  test("the older trick is named as itself, not as generic zero-width", async ({ page }) => {
+    await page.click("#nbspBtn");
+    await expect(page.locator("#inspectStat")).toContainText("soft hyphens and no-break spaces");
+    await expect(page.locator("#inspectStat")).toContainText("U+00AD");
+  });
+});
+
 test.describe("the carriers still work end to end", () => {
   for (const carrier of ["tags", "vs", "zw", "snow"]) {
     test(`${carrier}: hide then find, with the carrier auto-detected`, async ({ page }) => {

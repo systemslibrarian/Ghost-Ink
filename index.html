@@ -150,9 +150,11 @@
         <span class="u-faint">Load an example:</span>
         <button class="act ghost mini" id="lureBtn">Tags spam lure</button>
         <button class="act ghost mini" id="zwBtn">Zero-width payload</button>
+        <button class="act ghost mini" id="nbspBtn">NBSP &amp; soft hyphen</button>
         <button class="act ghost mini" id="bidiBtn">Bidi (Trojan Source)</button>
         <button class="act ghost mini" id="homoBtn">Look-alike domain</button>
         <button class="act ghost mini" id="snowBtn">SNOW whitespace</button>
+        <button class="act ghost mini" id="flagBtn">Flag emoji (false positive)</button>
       </div>
       <div class="out" id="inspectOut">
         <div class="inspect" id="inspectRender" aria-live="polite">Nothing inspected yet.</div>
@@ -166,7 +168,7 @@
   <!-- PLAYGROUND -->
   <section class="section" id="play">
     <h2>Play with it</h2>
-    <p class="lede">Four ways to feel the technique instead of reading about it: a guessing game you cannot win by looking, the model’s side of a prompt injection, a survivability test you run through your own apps, and a leak tracer.</p>
+    <p class="lede">Ways to feel the technique instead of reading about it: a guessing game you cannot win by looking, the model’s side of a prompt injection, the same carrier seen from inside a filter’s tokenizer, a survivability test you run through your own apps, a leak tracer, an emoji carrying a whole message, and a look-alike forge.</p>
 
     <div class="grid" id="layer-encoding">
 
@@ -210,6 +212,37 @@
           </div>
         </div>
         <div class="stat" id="mevStat"></div>
+      </div>
+
+      <!-- WHAT THE TOKENIZER SEES -->
+      <div class="card" id="tok-card" data-technique="tags">
+        <h3>What the tokenizer sees</h3>
+        <div class="hint">The other life of the same carrier, at the scale of a single word. A scoring model reads <span class="mono">funding</span> as one familiar unit. Put an invisible <span class="mono k">U+E0020</span> inside it and that unit is gone — while the recipient still reads “funding”. Click a gap to move the character.</div>
+        <div class="field-block">
+          <label class="lab" for="tokWord">A word a filter scores</label>
+          <input type="text" id="tokWord" value="funding" spellcheck="false" autocapitalize="off" autocorrect="off">
+        </div>
+        <div class="tok-gaps" id="tokGaps" role="group" aria-label="Choose where the invisible tag character goes"></div>
+        <div class="panes">
+          <div class="pane">
+            <div class="pane-h">What the recipient reads</div>
+            <div class="pane-b" id="tokHuman"></div>
+          </div>
+          <div class="pane danger">
+            <div class="pane-h">What the scorer receives</div>
+            <div class="pane-b" id="tokBytes"></div>
+          </div>
+        </div>
+        <div class="tok-rows">
+          <div class="tok-row"><span class="tok-lab">Split into</span><span class="tok-val" id="tokTokens"></span></div>
+          <div class="tok-row"><span class="tok-lab">After NFKC</span><span class="tok-val" id="tokNfkc"></span></div>
+          <div class="tok-row"><span class="tok-lab">After a Tags strip</span><span class="tok-val" id="tokStrip"></span></div>
+        </div>
+        <div class="stat" id="tokStat"></div>
+        <div class="actions">
+          <button class="act ghost" id="tokCopy">Copy the raw string</button>
+          <button class="act ghost" id="tokXray">Send it to the X&#8209;ray</button>
+        </div>
       </div>
 
       <!-- SURVIVABILITY LAB -->
@@ -536,13 +569,13 @@ One more small thing, and then I will stop. The build often fails for a strange 
       <figcaption><b>Only the figures Microsoft published are plotted.</b> Weekdays between these dates ran between roughly 1&nbsp;million and the 2.37&nbsp;million peak, but were not published as daily values, so no line is drawn through them. Source: Microsoft Security Blog, 3&nbsp;September&nbsp;2026.</figcaption>
     </figure>
 
-    <p>The email angle is subtler than plain hiding, and it is aimed squarely at machine-learning classifiers. A word like <span class="mono">funding</span> is a clean, familiar unit to a model’s tokenizer. Slip an invisible <span class="mono k">U+E0020</span> into the middle and the tokenizer may split it into <span class="mono">fun</span> and <span class="mono">ding</span>, or emit rare tokens the model has never weighted — while the recipient still reads “funding.” The lure survives; the filter’s view of it does not. <b>Want to see it?</b> Load the spam lure in the <a href="#inspect-panel">Inspect&nbsp;&amp;&nbsp;clean</a> panel above and X-ray it.</p>
+    <p>The email angle is subtler than plain hiding, and it is aimed squarely at machine-learning classifiers. A word like <span class="mono">funding</span> is a clean, familiar unit to a model’s tokenizer. Slip an invisible <span class="mono k">U+E0020</span> into the middle and the tokenizer may split it into <span class="mono">fun</span> and <span class="mono">ding</span>, or emit rare tokens the model has never weighted — while the recipient still reads “funding.” The lure survives; the filter’s view of it does not. <b>Want to see it?</b> Load the spam lure in the <a href="#inspect-panel">Inspect&nbsp;&amp;&nbsp;clean</a> panel above and X-ray it, or take one word apart in <a href="#tok-card">What the tokenizer sees</a>.</p>
 
     <blockquote class="pull">The property that makes tag characters useful for smuggling instructions into a model is the same property that makes them useful for hiding a keyword from a filter: they are invisible to a person and present to everything that processes text. The intent is inverted; the mechanism is not.
       <cite>— the mechanism in summary. Not a quotation; see <a href="docs/REFERENCES.md">REFERENCES</a> for the sources.</cite>
     </blockquote>
 
-    <p>Camouflaging trigger words isn’t new — spammers have leaned on zero-width and non-breaking spaces for decades to break literal-string matches. What’s new is the target. The bigger prize is no longer defeating a keyword search; it’s defeating the ML- and NLP-based models that now drive spam and phishing classification. Unless a filter renders the message to an image and runs OCR over it, the invisible tags can quietly change what the model “reads.”</p>
+    <p>Camouflaging trigger words isn’t new — spammers have leaned on zero-width characters, the no-break space <span class="mono k">U+00A0</span> and the soft hyphen <span class="mono k">U+00AD</span> for decades to break literal-string matches (the <b>NBSP&nbsp;&amp;&nbsp;soft&nbsp;hyphen</b> example in the Inspect panel is that older trick, unchanged). What’s new is the target. The bigger prize is no longer defeating a keyword search; it’s defeating the ML- and NLP-based models that now drive spam and phishing classification. Unless a filter renders the message to an image and runs OCR over it, the invisible tags can quietly change what the model “reads.”</p>
 
     <p class="source-note">All telemetry figures are taken from the primary source: <a href="https://www.microsoft.com/en-us/security/blog/2026/09/03/ascii-smuggling-crosses-over-from-ai-prompt-injection-to-phishing-evasion/" target="_blank" rel="noopener noreferrer">“ASCII smuggling crosses over from AI prompt injection to phishing evasion,”</a> Microsoft Security Blog, 3&nbsp;September&nbsp;2026. Secondary reporting: Dan Goodin, <a href="https://arstechnica.com/security/2026/09/once-popular-for-attacking-ai-ascii-smuggling-is-embraced-by-spammers/" target="_blank" rel="noopener noreferrer">“Once popular for attacking AI, ASCII smuggling is embraced by spammers,”</a> <i>Ars Technica</i>, 4&nbsp;September&nbsp;2026. This page is an independent educational demo and is not affiliated with either.</p>
   </section>
@@ -556,7 +589,7 @@ One more small thing, and then I will stop. The build often fails for a strange 
       <li><b>GitHub — bidirectional-text warning.</b> Diffs and blobs containing bidi control characters get a banner, added directly in response to Trojan Source.</li>
       <li><b>The Rust compiler.</b> A lint fires on bidi control codepoints inside string literals; other toolchains added equivalents. Boucher and Anderson’s 2021 Trojan Source paper (CVE-2021-42574 / 42694) is the common ancestor of all of these.</li>
       <li><b>Your browser, on every address bar.</b> The Punycode display rules and Unicode’s UTS #39 confusables data are the defence against the look-alike forge above — which is why that panel shows you the <code>xn--</code> form the browser would fall back to.</li>
-      <li><b>Microsoft Defender for Office.</b> The ASCII-smuggling signature behind the chart further up this page.</li>
+      <li><b>Microsoft Defender for Office.</b> The ASCII-smuggling signature behind the chart further up this page — and a working lesson in what a signature costs. Microsoft reports that its first version kept firing on legitimate mail, because the England, Scotland and Wales flag emoji are <i>built</i> out of tag characters; the three sequences had to be excluded before the signature was usable. A naive “any codepoint in U+E0000–E007F” rule is not ground truth. The <a href="#inspect-panel">Inspect</a> panel implements the same exception, and the <b>Flag emoji</b> example above shows it working.</li>
     </ul>
     <p>The pattern is worth noticing: every one of these defences is a <i>rendering</i> decision. None of them change the bytes. They make the invisible visible and let a human decide — which is the same move the Inspect panel makes.</p>
 

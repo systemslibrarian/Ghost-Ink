@@ -14,6 +14,7 @@ const EXPORTS = [
   "HDR", "MAGIC", "V2", "MODE_PLAIN", "MODE_GCM", "KDF_NONE", "KDF_PBKDF2_SHA256",
   "KDF_ITERS", "KDF_MIN", "KDF_MAX", "SALT_LEN", "NONCE_LEN", "GCM_TAG", "INV",
   "LEX_GROUPS", "LEX_INDEX", "lexTokens", "lexCapacity",
+  "emojiTagFlags", "tagFlagMask", "tagFlagSeq", "RGI_TAG_FLAGS", "cleanText",
 ];
 
 export function loadCodec() {
