@@ -68,11 +68,18 @@ source before it was listed here.
   interchangeable words appears. Ghost Ink reimplements the *idea* with a small
   hand-built codebook, not Winstein's hash construction or his thesaurus.
 * Mark Chapman and George Davida, **“Hiding the Hidden: A Software System for
-  Concealing Ciphertext as Innocuous Text”** (NICETEXT), ICICS 1997, pp. 335–345 —
-  <https://link.springer.com/chapter/10.1007/BFb0028489>. The generation-based
-  cousin: rather than substituting words in a cover, it *produces* cover text from
-  dictionaries and sentence templates. **Nothing here is taken from it**; it is
-  cited to mark the boundary of what this page does not do.
+  Concealing Ciphertext as Innocuous Text”** (NICETEXT), ICICS 1997, LNCS 1334,
+  pp. 335–345 — DOI [10.1007/BFb0028489](https://doi.org/10.1007/BFb0028489). The
+  generation-based cousin: rather than substituting words in a cover, it
+  *produces* cover text from dictionaries and sentence templates. **Nothing here
+  is taken from it**; it is cited to mark the boundary of what this page does not
+  do.
+
+**Two fields above are contested in the literature, and are recorded rather than
+silently picked.** Winstein's year follows the author's own page; some third-party
+indexes date it 1999, and the primary source wins. The Chapman–Davida start page
+appears as both 333 and 335 across secondary sources citing the same chapter — the
+DOI is authoritative and resolves it for anyone who needs the exact range.
 
 ## Secondary reporting
 
