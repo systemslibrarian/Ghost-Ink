@@ -94,6 +94,13 @@ Source), what a scraper reads when text is hidden by CSS, clipboard substitution
 normalisation and case-folding bypass, and least-significant-bit stego in an
 image.
 
+The authored examples use ghost sayings and ghost-club scenarios, including a
+locally drawn ghost picture. The image panel keeps the full 64× brightness
+difference map and adds **Ghost footprints**: a 10× enlargement of its first
+32 × 8 pixels. Black means unchanged. Short messages may affect less than one
+row, so the zoom makes those tiny changes visible without inventing changes
+elsewhere in the picture.
+
 ## How it works
 
 ```
@@ -202,7 +209,7 @@ application's own codec by slicing the pure region out of `app.js`
 | `e2e/learning.spec.js` | Guide navigation, all six detector scenarios, wrong-answer explanations, keyboard submission, reset/restart, and accessibility with feedback visible. |
 | `e2e/pwa.spec.js` | Manifest completeness with every icon fetched, the whole exhibit working with the network cut, a content-derived cache name, and a stale cache generation being evicted rather than stranding the user. |
 
-234 browser tests — 78 per engine across Chromium, Firefox and WebKit, all three
+237 browser tests — 79 per engine across Chromium, Firefox and WebKit, all three
 run in CI on every push and pull request. The offline and service-worker tests
 skip outside Chromium, and WebKit's keyboard-reachability floor differs because
 Safari's Tab default does — both are recorded in

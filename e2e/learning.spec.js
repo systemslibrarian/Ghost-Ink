@@ -117,7 +117,7 @@ test('hidden glyphs leave no phantom space and the reveal control is centered', 
     expect(geometry.height).toBe(geometry.withoutCarrierHeight);
     expect(geometry.centerOffset).toBeLessThanOrEqual(1);
     await page.click('#revealBtn');
-    await expect(page.locator('#heroDecoded')).toContainText('the package is under the third bench');
+    await expect(page.locator('#heroDecoded')).toContainText('Boo! The midnight snacks are in the attic.');
     await expect(page.locator('#stage .lit').first()).toBeVisible();
     await page.click('#revealBtn');
     await expect(page.locator('#heroDecoded')).toBeEmpty();

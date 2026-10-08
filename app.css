@@ -444,3 +444,7 @@
   .learn-more{border:1px solid var(--edge);border-radius:12px;background:var(--paper-2)}
   .learn-more summary{padding:16px;cursor:pointer;color:var(--uv);font-weight:600}
   .learn-body{padding:4px 16px 16px}
+
+  .diff-zoom{margin:18px 0 8px;max-width:640px}
+  .diff-zoom figcaption{font:11px var(--font-mono);color:var(--ink-faint);margin-bottom:8px}
+  .diff-zoom canvas{display:block;width:100%;height:auto;border:1px solid var(--edge);border-radius:8px;background:#000;image-rendering:pixelated}
