@@ -496,11 +496,10 @@
         const b = cp - TAG_BASE;
         span.textContent = lit ? (b>=0x20 && b<=0x7e ? String.fromCharCode(b) : "·") : "\u200b";
         if (lit) span.classList.add("lit");
-        else span.style.width = "0";
+        else span.classList.add("concealed");
       } else {
         span.textContent = ch;
-        span.style.minWidth = "0";
-        span.style.display = "inline";
+        span.classList.add("cover-glyph");
       }
       stage.appendChild(span);
     }

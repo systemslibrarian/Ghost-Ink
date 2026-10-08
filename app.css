@@ -104,13 +104,15 @@
   /* ---- hero reveal ---- */
   .hero{border:1px solid var(--edge); border-radius:16px; background:
     radial-gradient(120% 140% at 100% 0%, var(--paper-2), var(--paper)); padding:clamp(18px,3vw,28px); box-shadow:var(--shadow)}
-  .hero .eyebrow{font-size:13px; color:var(--ink-faint); margin-bottom:10px}
-  .stage{font-family:var(--font-serif); font-size:clamp(19px,3vw,26px); line-height:1.5;
+  .hero .eyebrow{text-align:center;font-size:13px; color:var(--ink-faint); margin-bottom:10px}
+  .stage{text-align:center;font-family:var(--font-serif); font-size:clamp(19px,3vw,26px); line-height:1.5;
     word-break:break-word; margin-bottom:18px}
   .glyph{display:inline-block; min-width:.62em; text-align:center; border-radius:5px; padding:0 .05em}
+  .glyph.concealed{width:0;min-width:0;padding:0;font-size:0;line-height:0}
+  .glyph.cover-glyph{display:inline;min-width:0;padding:0}
   .glyph.lit{background:var(--uv-soft); color:var(--uv); box-shadow:var(--glow);
     outline:1px solid var(--uv-line)}
-  .hero-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .hero-row{display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center}
   .decoded{font-family:var(--font-mono); font-size:14px}
   .decoded b{color:var(--uv)}
 
@@ -346,7 +348,9 @@
   .source-note a{color:var(--uv)}
 
   @media (prefers-reduced-motion: no-preference){
-    .glyph.lit{animation:pop .28s ease}
+    .glyph.concealed{width:0;min-width:0;padding:0;font-size:0;line-height:0}
+  .glyph.cover-glyph{display:inline;min-width:0;padding:0}
+  .glyph.lit{animation:pop .28s ease}
     @keyframes pop{from{transform:scale(.8); opacity:.2} to{transform:scale(1); opacity:1}}
   }
   /* Utilities. These exist so that no markup needs a style attribute, which is

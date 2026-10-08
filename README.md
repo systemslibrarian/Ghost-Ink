@@ -202,7 +202,7 @@ application's own codec by slicing the pure region out of `app.js`
 | `e2e/learning.spec.js` | Guide navigation, all six detector scenarios, wrong-answer explanations, keyboard submission, reset/restart, and accessibility with feedback visible. |
 | `e2e/pwa.spec.js` | Manifest completeness with every icon fetched, the whole exhibit working with the network cut, a content-derived cache name, and a stale cache generation being evicted rather than stranding the user. |
 
-231 browser tests — 77 per engine across Chromium, Firefox and WebKit, all three
+234 browser tests — 78 per engine across Chromium, Firefox and WebKit, all three
 run in CI on every push and pull request. The offline and service-worker tests
 skip outside Chromium, and WebKit's keyboard-reachability floor differs because
 Safari's Tab default does — both are recorded in

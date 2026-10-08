@@ -92,3 +92,34 @@ test('learning sections remain accessible with answer feedback visible', async (
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(results.violations.filter(v => ['serious', 'critical'].includes(v.impact))).toEqual([]);
 });
+
+
+test('hidden glyphs leave no phantom space and the reveal control is centered', async ({ page }) => {
+  for (const width of [1000, 360]) {
+    await page.setViewportSize({width, height: 800});
+    await page.goto('/index.html');
+    await page.click('[data-tour-step="0"]');
+    const geometry = await page.evaluate(() => {
+      const stage = document.getElementById('stage');
+      const hero = document.getElementById('secret-sentence').getBoundingClientRect();
+      const button = document.getElementById('revealBtn').getBoundingClientRect();
+      const height = stage.getBoundingClientRect().height;
+      const hidden = [...stage.querySelectorAll('.concealed')];
+      const hiddenWidths = hidden.map(el => el.getBoundingClientRect().width);
+      // Removing invisible carrier tiles should not change the sentence's layout.
+      hidden.forEach(el => el.remove());
+      const withoutCarrierHeight = stage.getBoundingClientRect().height;
+      return {height, withoutCarrierHeight, hiddenWidths,
+        centerOffset: Math.abs(button.x + button.width / 2 - hero.x - hero.width / 2)};
+    });
+    expect(geometry.hiddenWidths.length).toBeGreaterThan(0);
+    expect(geometry.hiddenWidths.every(width => width === 0)).toBe(true);
+    expect(geometry.height).toBe(geometry.withoutCarrierHeight);
+    expect(geometry.centerOffset).toBeLessThanOrEqual(1);
+    await page.click('#revealBtn');
+    await expect(page.locator('#heroDecoded')).toContainText('the package is under the third bench');
+    await expect(page.locator('#stage .lit').first()).toBeVisible();
+    await page.click('#revealBtn');
+    await expect(page.locator('#heroDecoded')).toBeEmpty();
+  }
+});
