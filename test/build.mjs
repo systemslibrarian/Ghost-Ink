@@ -51,7 +51,7 @@ const html = files.get("index.html");
     // XML namespace URIs identify a namespace; they are never fetched.
     const NAMESPACES = ["http://www.w3.org/2000/svg", "http://www.w3.org/1999/xhtml", "http://www.w3.org/1999/xlink"];
     // Absolute links that appear in prose, checked separately below to be links only.
-    const CITED = /^https:\/\/(www\.)?(microsoft\.com|arstechnica\.com|unicode\.org|github\.com|capacitorjs\.com)/;
+    const CITED = /^https:\/\/(www\.)?(microsoft\.com|arstechnica\.com|unicode\.org|github\.com|capacitorjs\.com|blog\.google|deepmind\.google)\//;
     const external = hits.filter((u) => !NAMESPACES.includes(u) && !CITED.test(u));
     eq(external, [], `${name}: no unexpected absolute URL (found ${external.join(", ")})`);
   }

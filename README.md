@@ -217,6 +217,23 @@ Only the figures Microsoft published are plotted on the page; intermediate
 weekdays were not published as daily values and no line is drawn through them.
 This project is independent and not affiliated with either.
 
+## Related development: SynthID (7 October 2026)
+
+Google announced global access in English to its SynthID Detector for images,
+video, and audio, including participating providers. The demo’s
+[dated SynthID note](https://systemslibrarian.github.io/Ghost-Ink/#synthid)
+connects this news to its detection-boundary lesson: Ghost Ink’s Unicode
+inspection and basic image-LSB decoder do not detect or remove SynthID watermarks.
+No detected watermark does not establish human authorship or factual truth.
+
+SynthID’s separate text-watermarking method adjusts token probabilities during
+generation; it does not insert the invisible Unicode characters demonstrated here.
+The October announcement concerns the public media detector.
+
+Primary sources: [Google’s announcement](https://blog.google/innovation-and-ai/models-and-research/google-deepmind/synth-id-ai-content/)
+and [SynthID overview](https://deepmind.google/models/synthid/).
+Secondary reporting: [Ars Technica, 7 October 2026](https://arstechnica.com/ai/2026/10/google-rolls-out-improved-synthid-ai-content-detector-now-available-globally/).
+
 ## Install it as an app
 
 Served over HTTPS, Ghost Ink is an installable PWA: it works offline and gets its

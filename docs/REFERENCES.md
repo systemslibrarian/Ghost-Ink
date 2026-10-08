@@ -50,12 +50,31 @@ page says so rather than borrowing authority from a secondary one.
 * **Rust compiler lint** for bidi codepoints in literals, and the equivalent
   responses in other toolchains.
 
+## SynthID and detection boundaries
+
+* **Google DeepMind, “We’re making it easier to identify AI-generated content
+  globally,”** 7 October 2026 —
+  <https://blog.google/innovation-and-ai/models-and-research/google-deepmind/synth-id-ai-content/>.
+  Primary source for the public media detector rollout, global English access,
+  and participating providers. The announcement covers images, video, and audio.
+* **Google DeepMind, SynthID overview** —
+  <https://deepmind.google/models/synthid/>. Describes media watermarking and the
+  separate text method, which adjusts token probabilities during generation.
+  Ghost Ink does not implement SynthID detection or removal. Its image-LSB
+  demonstration is a different scheme. Absence of a supported watermark cannot
+  establish human authorship or truth; that is the detection-boundary lesson.
+
 ## Secondary reporting
 
 * Dan Goodin, **“Once popular for attacking AI, ASCII smuggling is embraced by
   spammers,”** *Ars Technica*, 4 September 2026 —
   <https://arstechnica.com/security/2026/09/once-popular-for-attacking-ai-ascii-smuggling-is-embraced-by-spammers/>.
   Useful context; not used as a source for any figure.
+
+* Ryan Whitwam, **“Google rolls out improved SynthID AI content detector, now
+  available globally,”** *Ars Technica*, 7 October 2026 —
+  <https://arstechnica.com/ai/2026/10/google-rolls-out-improved-synthid-ai-content-detector-now-available-globally/>.
+  Reporting linked alongside Google's primary sources in the dated demo note.
 
 ## Historical and adjacent techniques
 
