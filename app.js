@@ -1964,6 +1964,68 @@
     }
   })();
 
+  // Scenario answers use the same detector taxonomy as the comparison matrix.
+  const CHALLENGES = [
+    {tech:"tags", prompt:"A normal-looking sentence contains extra invisible Unicode Tags. Which inspection exposes those characters?", why:"The signal is in the character sequence. A codepoint scan can expose the Tags even when the sentence looks unchanged."},
+    {tech:"css", prompt:"Ordinary words exist in a page’s HTML but CSS hides them from the reader. Which inspection compares the two views?", why:"The disagreement is between the DOM and the rendered page. There need not be an unusual character to flag."},
+    {tech:"lsb", prompt:"A picture carries a message in the low bits of its colour channels. Which inspection works at the relevant layer?", why:"The payload is in pixel data. A decoder that knows this LSB scheme can recover it; a Unicode scan cannot. This does not imply it can detect SynthID."},
+    {tech:"clipboard", prompt:"A page displays one command but its copy handler puts a different command on the clipboard. Which check reveals the substitution?", why:"Compare what was copied with what was displayed, in a safe text editor. The disagreement occurs during transfer."},
+    {tech:"normalise", prompt:"A filter accepts fullwidth letters, then a later NFKC conversion turns them into a blocked word. Which inspection addresses this order-of-operations bug?", why:"Check the same transformed form the consumer will use. Inspecting only the original string misses the later change."},
+    {tech:"confusables", prompt:"A familiar-looking name replaces Latin letters with similar shapes from another script. Which analysis addresses the impersonation?", why:"Compare confusable shapes and script use. Unusual characters can be legitimate, so a generic character flag is not itself an impersonation verdict."},
+  ];
+  let challengeIndex = 0;
+  let challengeAnswered = false;
+  function renderChallenge(moveFocus = false){
+    challengeAnswered = false;
+    const complete = challengeIndex === CHALLENGES.length;
+    $("challengeForm").hidden = complete;
+    $("challengeRestart").hidden = !complete;
+    $("challengeNext").hidden = true;
+    $("challengeDemo").hidden = true;
+    $("challengeFeedback").textContent = complete
+      ? "You have explored all six cases. Match the detector to the layer, and remember: no finding is not proof that nothing is hidden." : "";
+    $("challengeProgress").textContent = complete ? "Six scenarios explored" : `Scenario ${challengeIndex + 1} of ${CHALLENGES.length}`;
+    $("challengeChoices").replaceChildren();
+    if (!complete){
+      const q = CHALLENGES[challengeIndex];
+      const t = TECHNIQUES.find(t => t.id === q.tech);
+      $("challengePrompt").textContent = q.prompt;
+      const choices = [t.caught[0], ...t.missed.slice(0,2)];
+      // Rotate the correct choice so its position is not a hint.
+      for (let n = 0; n < challengeIndex % choices.length; n++) choices.push(choices.shift());
+      for (const id of choices){
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "radio"; input.name = "detectorAnswer"; input.value = id; input.required = true;
+        label.append(input, document.createTextNode(DETECTORS[id]));
+        $("challengeChoices").appendChild(label);
+      }
+    }
+    if (moveFocus) $("challenge-h").focus();
+  }
+  $("challengeForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const selected = document.querySelector('input[name="detectorAnswer"]:checked');
+    if (!selected) return;
+    const q = CHALLENGES[challengeIndex];
+    const t = TECHNIQUES.find(t => t.id === q.tech);
+    const correct = t.caught.includes(selected.value);
+    $("challengeFeedback").textContent = (correct ? "Yes. " : "For this scenario, use " + DETECTORS[t.caught[0]] + ". ") + q.why;
+    challengeAnswered = true;
+    $("challengeNext").hidden = false;
+    $("challengeNext").textContent = challengeIndex === CHALLENGES.length - 1 ? "Finish challenge" : "Next scenario";
+    $("challengeDemo").href = t.anchor;
+    $("challengeDemo").hidden = false;
+  });
+  $("challengeNext").addEventListener("click", () => {
+    if (!challengeAnswered) return;
+    challengeIndex++; renderChallenge(true);
+  });
+  function resetChallenge(){ challengeIndex = 0; renderChallenge(); }
+  $("challengeRestart").addEventListener("click", () => { resetChallenge(); $("challenge-h").focus(); });
+  $("reset").addEventListener("click", resetChallenge);
+  renderChallenge();
+
   // start the live panels
   drawSource(imgSeed);
   renderInspect();

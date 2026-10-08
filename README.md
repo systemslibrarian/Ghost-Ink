@@ -11,6 +11,15 @@ that a codepoint scan would never find. Static, offline-capable, no backend, and
 
 **[Live demo](https://systemslibrarian.github.io/Ghost-Ink/)**
 
+## Start learning
+
+The [three-minute guide](https://systemslibrarian.github.io/Ghost-Ink/#walkthrough)
+walks through hidden Unicode, CSS-hidden text, and image pixels using the existing
+interactive panels. The [detector challenge](https://systemslibrarian.github.io/Ghost-Ink/#detector-challenge)
+then offers six scenarios with explanations and links back to the demonstrations.
+Answers draw on the same detector taxonomy as the comparison matrix. Progress is
+local to the open page; Restart and the global Reset clear it.
+
 ## The organising idea
 
 Every technique here is filed by **where the two readers disagree**, not by what
@@ -189,9 +198,10 @@ application's own codec by slicing the pure region out of `app.js`
 | `e2e/security.spec.js` | Twenty hostile fragments against the scraper panel — script elements, event handlers, `img onerror`, remote images, SVG script, iframes, `object`/`embed`, `javascript:` URLs, forms, style elements, `url()`, `@import`, meta refresh, `base`, unclosed and case-mixed markup, entity-encoded handlers, `srcdoc` smuggling, remote stylesheets, video posters. Each asserts no execution, **no off-site request**, no navigation, no restyling of the parent, and no escape from the frame. Plus the page-level CSP and a whole-exhibit zero-third-party-request check. |
 | `e2e/panels.spec.js` | Clear on all ten panels that have one, Reset restoring every panel, all four carriers end to end with auto-detection, and the encrypted path reporting authentication. |
 | `e2e/a11y.spec.js` | axe-core over WCAG 2.0/2.1 A and AA rule tags, failing on serious and critical violations, before and after every panel has produced output; full tab-order walk asserting visible focus on every control; keyboard-only operation; invisible characters explained by text not colour; live regions; the chart's text alternative; 200% and 400% zoom without horizontal scroll; a 360px viewport; light and dark contrast; and `prefers-reduced-motion` suppressing all animation. |
+| `e2e/learning.spec.js` | Guide navigation, all six detector scenarios, wrong-answer explanations, keyboard submission, reset/restart, and accessibility with feedback visible. |
 | `e2e/pwa.spec.js` | Manifest completeness with every icon fetched, the whole exhibit working with the network cut, a content-derived cache name, and a stale cache generation being evicted rather than stranding the user. |
 
-216 browser tests — 72 per engine across Chromium, Firefox and WebKit, all three
+228 browser tests — 76 per engine across Chromium, Firefox and WebKit, all three
 run in CI on every push and pull request. The offline and service-worker tests
 skip outside Chromium, and WebKit's keyboard-reachability floor differs because
 Safari's Tab default does — both are recorded in

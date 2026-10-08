@@ -55,6 +55,17 @@
     </div>
   </div>
 
+  <section class="section" id="walkthrough" aria-labelledby="walkthrough-h">
+    <h2 id="walkthrough-h">Your first three minutes</h2>
+    <p>Try these three stops in order. At each stop, ask: what can this detector actually see?</p>
+    <ol class="tour-steps">
+      <li><h3>1 minute · Reveal the hidden text</h3><p>Use <b>Reveal hidden characters</b> in the sentence above. The visible sentence stays familiar, but extra characters carry a message.</p><a href="#revealBtn">Try the hidden sentence</a><p class="u-note">Notice: looking at the sentence and inspecting its characters give different answers.</p></li>
+      <li><h3>1 minute · Change the layer</h3><p>In <b>What a scraper reads</b>, choose <b>White on white</b>, then compare the rendered page with the extracted text.</p><a href="#scr-card">Try the CSS example</a><p class="u-note">Notice: ordinary text can be hidden by rendering rules. A character scan alone cannot explain what the viewer sees.</p></li>
+      <li><h3>1 minute · Look inside an image</h3><p>Choose <b>Hide it in the pixels</b>, inspect the amplified difference, then choose <b>Read it back</b>.</p><a href="#img-card">Try the image example</a><p class="u-note">Notice: the message lives in pixels, so a text inspector has no payload to examine.</p></li>
+    </ol>
+    <p>Ready to apply the idea? <a href="#detector-challenge">Try the detector challenge</a>, or explore any layer below.</p>
+  </section>
+
   <!-- LAYER NAVIGATION -->
   <nav class="section" id="layers" aria-labelledby="layers-h">
     <h2 id="layers-h">Choose a layer</h2>
@@ -337,6 +348,7 @@
       <!-- SCRAPER'S-EYE VIEW -->
       <div class="card" id="scr-card" data-technique="css">
         <h3>What a scraper reads</h3>
+        <p class="u-note"><a href="#walkthrough">Back to the three-minute guide</a> · <a href="#detector-challenge">Detector challenge</a></p>
         <div class="hint">No unusual codepoint is involved here at all. The text is perfectly ordinary — the <i>renderer</i> is told not to draw it. A model reading the page through <code>textContent</code>, or a scraper reading the DOM, gets every word of it. This is how prompt injection actually arrives on the open web.</div>
         <div class="field-block">
           <label class="lab" for="scrIn">HTML fragment</label>
@@ -404,6 +416,7 @@
       <!-- IMAGE LSB -->
       <div class="card span" id="img-card" data-technique="lsb">
         <h3>The low bit of a picture</h3>
+        <p class="u-note"><a href="#walkthrough">Back to the three-minute guide</a> · <a href="#detector-challenge">Detector challenge</a></p>
         <div class="hint">A different medium, the same idea. Each pixel's red, green and blue values get their least significant bit replaced with one bit of your message — a change of at most 1/255 per channel, which no eye resolves. The difference view amplifies it 64× so you can see where the payload actually sits.</div>
         <div class="field-block">
           <label class="lab" for="imgSecret">Message to hide in the image</label>
@@ -425,6 +438,23 @@
       </div>
 
     </div>
+  </section>
+
+  <section class="section" id="detector-challenge" aria-labelledby="challenge-h">
+    <h2 id="challenge-h" tabindex="-1">Which detector would catch this?</h2>
+    <p>Six short scenarios. Choose the inspection suited to each example, then read why. These are teaching cases, not guarantees about every detector implementation.</p>
+    <p id="challengeProgress" class="source-note"></p>
+    <form id="challengeForm">
+      <fieldset class="challenge-options">
+        <legend id="challengePrompt"></legend>
+        <div id="challengeChoices"></div>
+      </fieldset>
+      <div class="actions"><button class="act" id="challengeCheck" type="submit">Check answer</button><button class="act ghost" id="challengeNext" type="button" hidden>Next scenario</button></div>
+    </form>
+    <p id="challengeFeedback" role="status" aria-live="polite" aria-atomic="true"></p>
+    <p><a id="challengeDemo" hidden>Explore this example</a></p>
+    <button class="act ghost" id="challengeRestart" type="button" hidden>Try all six again</button>
+    <noscript><p>Enable JavaScript to use the detector challenge.</p></noscript>
   </section>
 
   <!-- RELATED DEVELOPMENT -->

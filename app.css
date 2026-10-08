@@ -420,3 +420,14 @@
       transition-duration:0.001ms !important; scroll-behavior:auto !important}
     html{scroll-behavior:auto}
   }
+
+  /* Guided learning uses the same paper, ink and focus styles as the exhibit. */
+  .tour-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px;list-style:none;padding:0}
+  .tour-steps li{padding:16px;border:1px solid var(--edge);border-radius:12px;background:var(--paper-2)}
+  .tour-steps h3{margin-top:0}
+  .challenge-options{border:1px solid var(--edge);border-radius:12px;padding:16px;min-width:0}
+  .challenge-options legend{font-weight:600;padding:0 6px;max-width:100%}
+  #challengeChoices{display:grid;gap:12px}
+  #challengeChoices label{display:flex;gap:10px;align-items:baseline;cursor:pointer}
+  #challengeChoices input{flex:none}
+  #challengeFeedback{line-height:1.7}
