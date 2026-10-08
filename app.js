@@ -1993,9 +1993,9 @@
 
   // Keep tour instructions at the experiment instead of stranding them upstream.
   const TOUR = [
-    {target:"secret-sentence", title:"Stop 1 of 3 · Reveal the ghost", instruction:"Click Reveal hidden characters below. Can you see how the extra characters carry a message while the sentence still looks ordinary?"},
-    {target:"scr-card", title:"Stop 2 of 3 · Meet the disappearing words", instruction:"Choose White on white below. Compare what the page shows with what the scraper reads. The words are there; the styling hides them."},
-    {target:"img-card", title:"Stop 3 of 3 · Haunt a picture", instruction:"Type a secret, choose Hide it in the pixels, then Read it back. The amplified difference shows where the picture changed."},
+    {target:"secret-sentence", control:"revealBtn", title:"Stop 1 of 3 · Reveal the ghost", instruction:"Click Reveal hidden characters below. Can you see how the extra characters carry a message while the sentence still looks ordinary?"},
+    {target:"scr-card", control:"scrEx1", title:"Stop 2 of 3 · Meet the disappearing words", instruction:"Choose White on white below. Compare what the page shows with what the scraper reads. The words are there; the styling hides them."},
+    {target:"img-card", control:"imgHide", title:"Stop 3 of 3 · Haunt a picture", instruction:"Type a secret, choose Hide it in the pixels, then Read it back. The amplified difference shows where the picture changed."},
   ];
   let tourIndex = 0;
   function focusTourTarget(el){
@@ -2004,7 +2004,9 @@
   }
   function showTour(index){
     tourIndex = index;
+    for (const stop of TOUR) $(stop.target).classList.remove("tour-active");
     const step = TOUR[index];
+    $(step.target).classList.add("tour-active");
     const guide = $("tourGuide");
     $(step.target).prepend(guide);
     guide.hidden = false;
@@ -2021,12 +2023,20 @@
       event.preventDefault(); showTour(Number(link.dataset.tourStep));
     });
   }
+  $("tourTry").addEventListener("click", () => {
+    const control = $(TOUR[tourIndex].control);
+    control.focus({preventScroll:true});
+    control.scrollIntoView({block:"center", behavior:"instant"});
+  });
   $("tourBack").addEventListener("click", () => { if (tourIndex > 0) showTour(tourIndex - 1); });
   $("tourNext").addEventListener("click", () => {
     if (tourIndex < TOUR.length - 1) showTour(tourIndex + 1);
-    else { $("tourGuide").hidden = true; focusTourTarget($("challenge-h")); }
+    else { closeTour(); focusTourTarget($("challenge-h")); }
   });
-  function closeTour(){ $("tourGuide").hidden = true; }
+  function closeTour(){
+    $("tourGuide").hidden = true;
+    for (const stop of TOUR) $(stop.target).classList.remove("tour-active");
+  }
   $("tourExit").addEventListener("click", () => { closeTour(); focusTourTarget($("walkthrough-h")); });
   for (const link of document.querySelectorAll('a[href="#walkthrough"], a[href="#detector-challenge"]')){
     link.addEventListener("click", closeTour);

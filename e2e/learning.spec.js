@@ -12,6 +12,18 @@ test('tour carries instructions through each stop and returns keyboard focus', a
     await expect(page.locator('#tourHeading')).toBeFocused();
     await expect(page.locator('#tourHeading')).toBeInViewport();
     await expect(page.locator('#tourHeading')).toContainText(`Stop ${i + 1} of 3`);
+    const layout = await page.locator(target).evaluate(el => {
+      const card = el.getBoundingClientRect(), parent = el.parentElement.getBoundingClientRect();
+      const controls = [...document.querySelectorAll('#tourGuide button')].filter(b => !b.hidden);
+      return {fullWidth: !el.classList.contains('card') || Math.abs(card.width-parent.width) < 2,
+        firstControl: controls[0].id};
+    });
+    expect(layout.fullWidth).toBe(true);
+    expect(layout.firstControl).toBe('tourTry');
+    await page.click('#tourTry');
+    const control = ['#revealBtn', '#scrEx1', '#imgHide'][i];
+    await expect(page.locator(control)).toBeFocused();
+    await expect(page.locator(control)).toBeInViewport();
     await page.click('#tourNext');
   }
   await expect(page.locator('#tourGuide')).toBeHidden();
@@ -20,6 +32,7 @@ test('tour carries instructions through each stop and returns keyboard focus', a
   await page.click('#tourBack');
   await expect(page.locator('#scr-card #tourGuide')).toBeVisible();
   await page.click('#tourExit');
+  await expect(page.locator('.tour-active')).toHaveCount(0);
   await expect(page.locator('#walkthrough-h')).toBeFocused();
   await expect(page.locator('#walkthrough-h')).toBeInViewport();
   await expect(page.locator('#secret')).toHaveValue('keep my experiment');
@@ -38,6 +51,9 @@ test('deeper explanations expand by keyboard and the active tour fits a phone', 
   await expect(page.locator('#matrix')).toBeVisible();
   await page.click('[data-tour-step="2"]');
   await expect(page.locator('#tourHeading')).toBeInViewport();
+  await page.click('#tourTry');
+  await expect(page.locator('#imgHide')).toBeFocused();
+  await expect(page.locator('#imgHide')).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   const results = await new AxeBuilder({ page }).include('#tourGuide')
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();

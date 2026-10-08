@@ -136,7 +136,7 @@
   .grid{display:grid; gap:18px; grid-template-columns:1fr 1fr; margin-top:34px}
   @media (max-width:720px){ .grid{grid-template-columns:1fr} }
   .card{border:1px solid var(--edge); border-radius:14px; background:var(--paper-2); padding:20px; box-shadow:var(--shadow)}
-  .card.span{grid-column:1 / -1}
+  .card.span, .card.tour-active{grid-column:1 / -1}
   .card h3{font-size:19px; margin-bottom:4px}
   .card .hint{font-size:13px; color:var(--ink-faint); margin-bottom:14px}
   label.lab{display:block; font-size:12.5px; color:var(--ink-soft); margin:0 0 5px; font-weight:500}
@@ -448,3 +448,5 @@
   .diff-zoom{margin:18px 0 8px;max-width:640px}
   .diff-zoom figcaption{font:11px var(--font-mono);color:var(--ink-faint);margin-bottom:8px}
   .diff-zoom canvas{display:block;width:100%;height:auto;border:1px solid var(--edge);border-radius:8px;background:#000;image-rendering:pixelated}
+
+  .card.tour-active > .hint, .card.tour-active > .u-note{display:none}
