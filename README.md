@@ -13,9 +13,10 @@ that a codepoint scan would never find. Static, offline-capable, no backend, and
 
 ## Start learning
 
-The [three-minute guide](https://systemslibrarian.github.io/Ghost-Ink/#walkthrough)
+The [ghost tour](https://systemslibrarian.github.io/Ghost-Ink/#walkthrough)
 walks through hidden Unicode, CSS-hidden text, and image pixels using the existing
-interactive panels. The [detector challenge](https://systemslibrarian.github.io/Ghost-Ink/#detector-challenge)
+interactive panels. Instructions travel to each stop with Previous, Next, and
+Back to guide controls. Longer explanations live in expandable sections. The [detector challenge](https://systemslibrarian.github.io/Ghost-Ink/#detector-challenge)
 then offers six scenarios with explanations and links back to the demonstrations.
 Answers draw on the same detector taxonomy as the comparison matrix. Progress is
 local to the open page; Restart and the global Reset clear it.
@@ -201,7 +202,7 @@ application's own codec by slicing the pure region out of `app.js`
 | `e2e/learning.spec.js` | Guide navigation, all six detector scenarios, wrong-answer explanations, keyboard submission, reset/restart, and accessibility with feedback visible. |
 | `e2e/pwa.spec.js` | Manifest completeness with every icon fetched, the whole exhibit working with the network cut, a content-derived cache name, and a stale cache generation being evicted rather than stranding the user. |
 
-228 browser tests — 76 per engine across Chromium, Firefox and WebKit, all three
+231 browser tests — 77 per engine across Chromium, Firefox and WebKit, all three
 run in CI on every push and pull request. The offline and service-worker tests
 skip outside Chromium, and WebKit's keyboard-reachability floor differs because
 Safari's Tab default does — both are recorded in

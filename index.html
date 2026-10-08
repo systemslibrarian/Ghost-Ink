@@ -28,7 +28,7 @@
       <span class="mark" aria-hidden="true">🫥</span>
       <div>
         <h1>Ghost Ink</h1>
-        <div class="subtitle">Hidden messages · six layers · detection boundaries</div>
+        <div class="subtitle">Hide a secret. Reveal the trick.</div>
       </div>
     </div>
     <div class="controls">
@@ -43,10 +43,10 @@
     <button id="iosHintClose" aria-label="Dismiss">×</button>
   </div>
 
-  <p class="lede">Start with Unicode Tags: letters that computers read but people can’t see. Then explore deceptive text, hidden pixels, and the limits of each detector. The lesson: a detector only sees the layer it was designed to inspect.</p>
+  <p class="lede">Can you hide a message in plain sight? In an emoji? Inside a picture? Try it, reveal the trick, and discover why different kinds of secrets need different ways of finding them.</p>
 
   <!-- HERO: reveal -->
-  <div class="hero">
+  <div class="hero" id="secret-sentence">
     <div class="eyebrow">This sentence carries a hidden message. Nothing looks wrong.</div>
     <div class="stage" id="stage" aria-live="off"></div>
     <div class="hero-row">
@@ -56,20 +56,30 @@
   </div>
 
   <section class="section" id="walkthrough" aria-labelledby="walkthrough-h">
-    <h2 id="walkthrough-h">Your first three minutes</h2>
-    <p>Try these three stops in order. At each stop, ask: what can this detector actually see?</p>
+    <h2 id="walkthrough-h" tabindex="-1">Take a three-stop ghost tour</h2>
+    <p>Start anywhere, or follow all three stops. Each experiment gets its own little guide. Prefer to explore? All the toys are below.</p>
     <ol class="tour-steps">
-      <li><h3>1 minute · Reveal the hidden text</h3><p>Use <b>Reveal hidden characters</b> in the sentence above. The visible sentence stays familiar, but extra characters carry a message.</p><a href="#revealBtn">Try the hidden sentence</a><p class="u-note">Notice: looking at the sentence and inspecting its characters give different answers.</p></li>
-      <li><h3>1 minute · Change the layer</h3><p>In <b>What a scraper reads</b>, choose <b>White on white</b>, then compare the rendered page with the extracted text.</p><a href="#scr-card">Try the CSS example</a><p class="u-note">Notice: ordinary text can be hidden by rendering rules. A character scan alone cannot explain what the viewer sees.</p></li>
-      <li><h3>1 minute · Look inside an image</h3><p>Choose <b>Hide it in the pixels</b>, inspect the amplified difference, then choose <b>Read it back</b>.</p><a href="#img-card">Try the image example</a><p class="u-note">Notice: the message lives in pixels, so a text inspector has no payload to examine.</p></li>
+      <li><h3>1 · Reveal the ghost</h3><p>Use <b>Reveal hidden characters</b> in the sentence above. The visible sentence stays familiar, but extra characters carry a message.</p><a href="#secret-sentence" data-tour-step="0">Try the hidden sentence</a><p class="u-note">Notice: looking at the sentence and inspecting its characters give different answers.</p></li>
+      <li><h3>2 · Meet the disappearing words</h3><p>In <b>What a scraper reads</b>, choose <b>White on white</b>, then compare the rendered page with the extracted text.</p><a href="#scr-card" data-tour-step="1">Try the disappearing words</a><p class="u-note">Notice: ordinary text can be hidden by rendering rules. A character scan alone cannot explain what the viewer sees.</p></li>
+      <li><h3>3 · Haunt a picture</h3><p>Choose <b>Hide it in the pixels</b>, inspect the amplified difference, then choose <b>Read it back</b>.</p><a href="#img-card" data-tour-step="2">Hide a secret in a picture</a><p class="u-note">Notice: the message lives in pixels, so a text inspector has no payload to examine.</p></li>
     </ol>
     <p>Ready to apply the idea? <a href="#detector-challenge">Try the detector challenge</a>, or explore any layer below.</p>
   </section>
 
+  <aside id="tourGuide" class="tour-guide" aria-labelledby="tourHeading" hidden>
+    <h3 id="tourHeading" tabindex="-1"></h3>
+    <p id="tourInstruction"></p>
+    <div class="actions">
+      <button class="act ghost" id="tourBack" type="button">Previous stop</button>
+      <button class="act" id="tourNext" type="button">Next stop</button>
+      <button class="act ghost" id="tourExit" type="button">Back to guide</button>
+    </div>
+  </aside>
+
   <!-- LAYER NAVIGATION -->
   <nav class="section" id="layers" aria-labelledby="layers-h">
-    <h2 id="layers-h">Choose a layer</h2>
-    <p class="lede">Thirteen demonstrations, six places where the disagreement can live. The organising question is not what a trick is called but <i>where the two readers part company</i> — because that is what decides which detector could ever have caught it.</p>
+    <h2 id="layers-h">Pick your next ghost trick</h2>
+    <p class="lede">Explore six ways that what you see can differ from what a computer reads. Each experiment shows where the trick lives and how to spot it.</p>
     <div class="layer-nav" id="layerNav"></div>
   </nav>
 
@@ -441,7 +451,7 @@
   </section>
 
   <section class="section" id="detector-challenge" aria-labelledby="challenge-h">
-    <h2 id="challenge-h" tabindex="-1">Which detector would catch this?</h2>
+    <h2 id="challenge-h" tabindex="-1">Can you catch the trick?</h2>
     <p>Six short scenarios. Choose the inspection suited to each example, then read why. These are teaching cases, not guarantees about every detector implementation.</p>
     <p id="challengeProgress" class="source-note"></p>
     <form id="challengeForm">
@@ -470,15 +480,18 @@
 
   <!-- COMPARISON MATRIX -->
   <section class="section" id="matrix-section">
-    <h2>One table, every technique</h2>
-    <p>The column that matters is the sixth. A codepoint scan — the detector this page implements in <a href="#inspect-panel">Inspect &amp; clean</a>, and the one most real filters implement — catches six of the ten techniques here and is structurally blind to the other four. Not because it is badly written, but because they do not live at the layer it inspects.</p>
+    <h2>Which tool spots which trick?</h2>
+    <details class="learn-more"><summary>Compare all the tricks</summary><div class="learn-body">
+    <p>Compare the inspection each trick needs. The <a href="#inspect-panel">Inspect &amp; clean</a> panel can expose unusual characters; tricks in CSS, clipboard transfers, and image pixels need other checks.</p>
     <div class="matrix-wrap" id="matrix" tabindex="0" role="region" aria-label="Comparison of every technique demonstrated, scrollable"></div>
     <p class="u-note">Survivability is a general expectation, not a measurement. The <a href="#surv-card">survivability lab</a> is there so you can measure the paths you actually care about instead of trusting this column.</p>
+      </div></details>
   </section>
 
   <!-- TEACHING: how it works -->
   <section class="section">
-    <h2>What just happened</h2>
+    <h2>Why does this work?</h2>
+    <details class="learn-more"><summary>Peek under the hood</summary><div class="learn-body">
     <p>Unicode reserves a block called <b>Tags</b> from U+E0000 to U+E007F. Almost all of it mirrors plain ASCII: U+E0041 stands in for “A”, U+E0061 for “a”, U+E0020 for a space. The characters exist in the text and travel with it, but fonts render them to nothing, so a person sees only the cover text.</p>
     <ol class="steps">
       <li>Your secret is turned into bytes, then Base64 so every character lands in the printable ASCII range.</li>
@@ -486,11 +499,13 @@
       <li>The invisible run is appended to (or scattered through) the cover text. Position doesn’t matter: a reader collects the tag characters in order and shifts them back down.</li>
     </ol>
     <div class="callout"><b>Container format.</b> The current v2 record begins with <span class="mono">GHST</span>, version, mode, KDF parameters, and declared lengths, followed by salt, nonce, and payload as applicable. Plaintext carries a CRC-32 corruption check; it provides no authentication. With encryption on, PBKDF2-SHA256 derives the key (210,000 iterations by default), and AES-256-GCM authenticates the header, salt, nonce, and message. Everything runs in your browser. <a href="https://github.com/systemslibrarian/Ghost-Ink/blob/main/docs/CONTAINER.md" target="_blank" rel="noopener noreferrer">Read the v2 specification</a>.</div>
+      </div></details>
   </section>
 
   <!-- TEACHING: in the wild -->
   <section class="section" id="wild">
-    <h2>How attackers use this in the wild</h2>
+    <h2>Do people really use these tricks?</h2>
+    <details class="learn-more"><summary>Read the real-world story</summary><div class="learn-body">
     <p>This is not a party trick. The exact carrier this page demonstrates — the Unicode Tags block — is a live technique known as <b>ASCII smuggling</b>. It has had two lives, and a user’s suspicions are never raised in either one.</p>
 
     <div class="two-lives">
@@ -531,11 +546,13 @@
     <p>Camouflaging trigger words isn’t new — spammers have leaned on zero-width and non-breaking spaces for decades to break literal-string matches. What’s new is the target. The bigger prize is no longer defeating a keyword search; it’s defeating the ML- and NLP-based models that now drive spam and phishing classification. Unless a filter renders the message to an image and runs OCR over it, the invisible tags can quietly change what the model “reads.”</p>
 
     <p class="source-note">All telemetry figures are taken from the primary source: <a href="https://www.microsoft.com/en-us/security/blog/2026/09/03/ascii-smuggling-crosses-over-from-ai-prompt-injection-to-phishing-evasion/" target="_blank" rel="noopener noreferrer">“ASCII smuggling crosses over from AI prompt injection to phishing evasion,”</a> Microsoft Security Blog, 3&nbsp;September&nbsp;2026. Secondary reporting: Dan Goodin, <a href="https://arstechnica.com/security/2026/09/once-popular-for-attacking-ai-ascii-smuggling-is-embraced-by-spammers/" target="_blank" rel="noopener noreferrer">“Once popular for attacking AI, ASCII smuggling is embraced by spammers,”</a> <i>Ars Technica</i>, 4&nbsp;September&nbsp;2026. This page is an independent educational demo and is not affiliated with either.</p>
+      </div></details>
   </section>
 
   <!-- TEACHING: honest limits -->
   <section class="section">
-    <h2>You are not the only one watching for this</h2>
+    <h2>How do you spot the trick?</h2>
+    <details class="learn-more"><summary>Explore defences and limitations</summary><div class="learn-body">
     <p>The Inspect panel above is a friendly version of checks that already ship in tools you probably use every day. Trojan Source is why most of them exist.</p>
     <ul>
       <li><b>VS Code — Unicode highlighting.</b> The editor flags invisible, ambiguous and non-basic-ASCII characters inline. It is on by default for ambiguous characters; the settings that govern it live under <code>editor.unicodeHighlight.*</code> (<code>invisibleCharacters</code>, <code>ambiguousCharacters</code>, <code>nonBasicASCII</code>). The closest productised sibling to this page’s detector.</li>
@@ -561,6 +578,7 @@
       <li><b>Not a substitute for a covert channel.</b> Treat this as a teaching model of a known technique, not a way to move messages past a real adversary. Modern detectors already flag it — which is exactly why understanding it matters for defense.</li>
     </ul>
     <p class="mono" class="u-note">Real primitives, no simulated math. Crypto via WebCrypto SubtleCrypto. Everything runs client-side.</p>
+      </div></details>
   </section>
 
   <footer>

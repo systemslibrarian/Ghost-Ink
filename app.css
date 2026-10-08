@@ -431,3 +431,12 @@
   #challengeChoices label{display:flex;gap:10px;align-items:baseline;cursor:pointer}
   #challengeChoices input{flex:none}
   #challengeFeedback{line-height:1.7}
+
+  .tour-guide{border:1px solid var(--uv-line);border-radius:12px;padding:16px;background:var(--paper-2);margin-bottom:20px}
+  .tour-guide h3{font-size:18px;margin:0 0 10px;color:var(--ink)}
+  .tour-guide p{color:var(--ink-soft);font-size:14px}
+  .tour-guide .actions{flex-wrap:wrap}
+  #tourHeading, #walkthrough-h, #challenge-h, #secret-sentence, #scr-card, #img-card{scroll-margin-top:20px}
+  .learn-more{border:1px solid var(--edge);border-radius:12px;background:var(--paper-2)}
+  .learn-more summary{padding:16px;cursor:pointer;color:var(--uv);font-weight:600}
+  .learn-body{padding:4px 16px 16px}

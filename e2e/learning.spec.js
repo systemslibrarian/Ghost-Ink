@@ -3,13 +3,45 @@ import AxeBuilder from '@axe-core/playwright';
 
 test.beforeEach(async ({ page }) => { await page.goto('/index.html'); });
 
-test('guide links reach the demos and offer a return path', async ({ page }) => {
-  for (const target of ['#revealBtn', '#scr-card', '#img-card']) {
-    await page.locator(`#walkthrough a[href="${target}"]`).click();
-    await expect(page.locator(target)).toBeInViewport();
+test('tour carries instructions through each stop and returns keyboard focus', async ({ page }) => {
+  await page.fill('#secret', 'keep my experiment');
+  await page.locator('[data-tour-step="0"]').focus();
+  await page.keyboard.press('Enter');
+  for (const [i, target] of ['#secret-sentence', '#scr-card', '#img-card'].entries()) {
+    await expect(page.locator(`${target} #tourGuide`)).toBeVisible();
+    await expect(page.locator('#tourHeading')).toBeFocused();
+    await expect(page.locator('#tourHeading')).toBeInViewport();
+    await expect(page.locator('#tourHeading')).toContainText(`Stop ${i + 1} of 3`);
+    await page.click('#tourNext');
   }
-  await page.locator('#img-card a[href="#walkthrough"]').click();
+  await expect(page.locator('#tourGuide')).toBeHidden();
+  await expect(page.locator('#challenge-h')).toBeFocused();
+  await page.click('[data-tour-step="2"]');
+  await page.click('#tourBack');
+  await expect(page.locator('#scr-card #tourGuide')).toBeVisible();
+  await page.click('#tourExit');
+  await expect(page.locator('#walkthrough-h')).toBeFocused();
   await expect(page.locator('#walkthrough-h')).toBeInViewport();
+  await expect(page.locator('#secret')).toHaveValue('keep my experiment');
+  await page.click('[data-tour-step="1"]');
+  await page.click('#reset');
+  await expect(page.locator('#tourGuide')).toBeHidden();
+});
+
+test('deeper explanations expand by keyboard and the active tour fits a phone', async ({ page }) => {
+  await page.setViewportSize({width: 360, height: 740});
+  const explanation = page.locator('.learn-more').first();
+  await expect(explanation).not.toHaveAttribute('open', '');
+  await explanation.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  await expect(explanation).toHaveAttribute('open', '');
+  await expect(page.locator('#matrix')).toBeVisible();
+  await page.click('[data-tour-step="2"]');
+  await expect(page.locator('#tourHeading')).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  const results = await new AxeBuilder({ page }).include('#tourGuide')
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(results.violations.filter(v => ['serious', 'critical'].includes(v.impact))).toEqual([]);
 });
 
 test('challenge explains a wrong answer and completes all six cases', async ({ page }) => {

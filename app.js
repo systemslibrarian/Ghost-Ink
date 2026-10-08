@@ -1964,6 +1964,48 @@
     }
   })();
 
+  // Keep tour instructions at the experiment instead of stranding them upstream.
+  const TOUR = [
+    {target:"secret-sentence", title:"Stop 1 of 3 · Reveal the ghost", instruction:"Click Reveal hidden characters below. Can you see how the extra characters carry a message while the sentence still looks ordinary?"},
+    {target:"scr-card", title:"Stop 2 of 3 · Meet the disappearing words", instruction:"Choose White on white below. Compare what the page shows with what the scraper reads. The words are there; the styling hides them."},
+    {target:"img-card", title:"Stop 3 of 3 · Haunt a picture", instruction:"Type a secret, choose Hide it in the pixels, then Read it back. The amplified difference shows where the picture changed."},
+  ];
+  let tourIndex = 0;
+  function focusTourTarget(el){
+    el.focus({preventScroll:true});
+    el.scrollIntoView({block:"start", behavior:"instant"});
+  }
+  function showTour(index){
+    tourIndex = index;
+    const step = TOUR[index];
+    const guide = $("tourGuide");
+    $(step.target).prepend(guide);
+    guide.hidden = false;
+    $("tourHeading").textContent = step.title;
+    $("tourInstruction").textContent = step.instruction;
+    $("tourBack").hidden = index === 0;
+    $("tourNext").textContent = index === TOUR.length - 1 ? "Try the challenge" : "Next stop";
+    focusTourTarget($("tourHeading"));
+  }
+  for (const link of document.querySelectorAll("[data-tour-step]")){
+    link.addEventListener("click", event => {
+      // Preserve normal link behaviour for new tabs and modified clicks.
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault(); showTour(Number(link.dataset.tourStep));
+    });
+  }
+  $("tourBack").addEventListener("click", () => { if (tourIndex > 0) showTour(tourIndex - 1); });
+  $("tourNext").addEventListener("click", () => {
+    if (tourIndex < TOUR.length - 1) showTour(tourIndex + 1);
+    else { $("tourGuide").hidden = true; focusTourTarget($("challenge-h")); }
+  });
+  function closeTour(){ $("tourGuide").hidden = true; }
+  $("tourExit").addEventListener("click", () => { closeTour(); focusTourTarget($("walkthrough-h")); });
+  for (const link of document.querySelectorAll('a[href="#walkthrough"], a[href="#detector-challenge"]')){
+    link.addEventListener("click", closeTour);
+  }
+  $("reset").addEventListener("click", closeTour);
+
   // Scenario answers use the same detector taxonomy as the comparison matrix.
   const CHALLENGES = [
     {tech:"tags", prompt:"A normal-looking sentence contains extra invisible Unicode Tags. Which inspection exposes those characters?", why:"The signal is in the character sequence. A codepoint scan can expose the Tags even when the sentence looks unchanged."},
