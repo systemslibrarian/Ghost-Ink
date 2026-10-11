@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use Ghost Ink in teaching or research, please cite this software."
+type: software
+title: "Ghost Ink: An Interactive Security Exhibit on Hidden Content and Detection Boundaries"
+abstract: "An offline-capable browser-based educational security exhibit exploring hidden and deceptive content across Unicode, text rendering, clipboard interactions, transformations, and images. Interactive demonstrations pair concealment techniques with inspection, cleaning, and detection-boundary explanations. Includes optional authenticated payload encryption and documented limitations."
+authors:
+  - family-names: "Clark"
+    given-names: "Paul A."
+    affiliation: "Leon County Public Library"
+    orcid: "https://orcid.org/0009-0004-2394-0991"
+version: "1.0.0"
+url: "https://systemslibrarian.github.io/Ghost-Ink/"
+repository-code: "https://github.com/systemslibrarian/Ghost-Ink"
+license: MIT
+keywords:
+  - security education
+  - steganography
+  - Unicode
+  - hidden content
+  - digital forensics
+  - detection boundaries
