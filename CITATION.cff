@@ -9,6 +9,8 @@ authors:
     affiliation: "Leon County Public Library"
     orcid: "https://orcid.org/0009-0004-2394-0991"
 version: "1.0.0"
+date-released: "2026-10-12"
+doi: "10.5281/zenodo.23307038"
 url: "https://systemslibrarian.github.io/Ghost-Ink/"
 repository-code: "https://github.com/systemslibrarian/Ghost-Ink"
 license: MIT
