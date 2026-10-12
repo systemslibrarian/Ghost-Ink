@@ -1,5 +1,7 @@
 # Ghost Ink
 
+[![DOI](https://zenodo.org/badge/1357587695.svg)](https://doi.org/10.5281/zenodo.23307037)
+
 An educational security exhibit about **text that means different things to
 different readers** — and about which class of inspection catches each kind of
 disagreement, and which is structurally blind to it.
