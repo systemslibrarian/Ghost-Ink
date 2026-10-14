@@ -16,11 +16,11 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
-    "@capacitor/android": "^8.5.1",
-    "@capacitor/cli": "^8.5.1",
-    "@capacitor/core": "^8.5.1",
-    "@capacitor/ios": "^8.5.1",
-    "@playwright/test": "1.63.0"
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@playwright/test": "1.64.0"
   },
   "files": [
     "dist"
