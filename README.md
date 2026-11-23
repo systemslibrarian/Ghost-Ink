@@ -254,6 +254,40 @@ Primary sources: [Google’s announcement](https://blog.google/innovation-and-ai
 and [SynthID overview](https://deepmind.google/models/synthid/).
 Secondary reporting: [Ars Technica, 7 October 2026](https://arstechnica.com/ai/2026/10/google-rolls-out-improved-synthid-ai-content-detector-now-available-globally/).
 
+## Further reading: who else reads your prompt
+
+The Inspect panel answers one question: *what is in this text that I cannot
+see?* In November 2026 HD Moore's team at Dragos answered the opposite one —
+*who sees my prompt that I do not know about?* — by seeding roughly two million
+prompts with unique canary credentials and URLs, each sent in exactly one
+request, and watching where they resurfaced: at least three breached inference
+providers, marketplace resellers reading prompts through ordinary request
+logging, and privacy flags that appeared not to be honoured. Both are the same
+lesson about trust in a text pipeline, taken from opposite ends: the layer a
+reader cannot see, and the readers a sender cannot see.
+
+Primary source: [Dragos, *Three breaches, endless leaks: your AI supply chain needs canaries*](https://www.dragos.com/blog/ai-supply-chain-security-canary-tokens).
+Secondary reporting: [Ars Technica, November 2026](https://arstechnica.com/security/2026/11/a-leaky-ai-supply-chain-is-exposing-secret-user-data-at-an-alarming-rate/).
+This project is independent and not affiliated with either.
+
+### Invisible canary
+
+The survivability lab measures whether a hidden payload *survives* a path. A
+canary adds the one thing the lab cannot tell you: whether something on that
+path *read* it. Ghost Ink makes no network request of its own; the token is
+yours, generated outside the page.
+
+1. Generate a free URL token at [canarytokens.org](https://canarytokens.org/).
+2. Hide it with the Unicode Tags carrier, placement **Scatter through the text**.
+3. Send the cover text through a pipeline you own or are authorised to test.
+4. If the token fires, that hop decoded the Tags block rather than normalising
+   it away.
+
+Only test your own pipeline. The URL is passive — it carries no instructions and
+is not an injection payload. A token that does not fire proves nothing: the hop
+may have stripped the characters, or simply never fetched. No result is claimed
+here; the experiment is yours to run.
+
 ## Install it as an app
 
 Served over HTTPS, Ghost Ink is an installable PWA: it works offline and gets its
